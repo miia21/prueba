@@ -1,618 +1,114 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consulta de Expedientes — Municipalidad de Pocito</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --ink:     #111210;
-  --ink2:    #4a4a46;
-  --ink3:    #8a8a84;
-  --ink4:    #c2c2bc;
-  --paper:   #f7f5f0;
-  --card:    #ffffff;
-  --line:    rgba(17,18,16,.10);
-  --line2:   rgba(17,18,16,.06);
-  --blue:    #1a4f8a;
-  --blue-bg: #e8f0fa;
-  --blue-dk: #0d3566;
-  --green:   #0f6e56;
-  --green-bg:#e1f5ee;
-  --amber:   #7a4a09;
-  --amber-bg:#fdf0d5;
-  --red:     #8b2020;
-  --red-bg:  #fbeaea;
-  --r:       8px;
-  --r-lg:    14px;
-  --r-xl:    20px;
-}
-html{scroll-behavior:smooth}
-body{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;
-  background:var(--paper);
-  color:var(--ink);
-  min-height:100vh;
-  font-size:15px;
-  line-height:1.7;
-  -webkit-font-smoothing:antialiased;
-}
-
-/* ── HEADER ── */
-.hd{
-  background:var(--ink);color:#fff;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:0 2.5rem;height:56px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  position:sticky;top:0;z-index:200;
-}
-.hd-brand{display:flex;align-items:center;gap:12px}
-.hd-shield{
-  width:30px;height:30px;background:var(--blue);border-radius:6px;
-  display:flex;align-items:center;justify-content:center;
-}
-.hd-shield svg{width:16px;height:16px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round}
-.hd-name{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
-.hd-sep{width:1px;height:14px;background:rgba(255,255,255,.15);margin:0 2px}
-.hd-sub{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.3px}
-.hd-dot-wrap{display:flex;align-items:center;gap:6px;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.5px;text-transform:uppercase}
-.hd-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink 2.5s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* ── HERO / FORMULARIO ── */
-.hero{
-  background:var(--ink);
-  padding:3rem 2.5rem 0;
-}
-.hero-inner{max-width:820px;margin:0 auto}
-.hero-eyebrow{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:10px;font-weight:600;
-  letter-spacing:1.5px;text-transform:uppercase;
-  color:rgba(255,255,255,.3);margin-bottom:.75rem;
-  display:flex;align-items:center;gap:8px;
-}
-.hero-eyebrow::before{content:'';display:block;width:18px;height:1px;background:rgba(255,255,255,.2)}
-.hero h1{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:clamp(26px,4vw,40px);
-  font-weight:700;color:#fff;line-height:1.1;letter-spacing:-0.8px;
-  margin-bottom:.5rem;
-}
-.hero-desc{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;
-  color:rgba(255,255,255,.4);margin-bottom:2rem;line-height:1.6;
-}
-
-/* ── SEARCH BOX — estilo referencia: limpio, campos en fila ── */
-.search-box{
-  background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.09);
-  border-bottom:none;
-  border-radius:var(--r-xl) var(--r-xl) 0 0;
-  padding:1.75rem 2rem;
-}
-.search-row{
-  display:grid;
-  grid-template-columns:1fr 90px 130px auto;
-  gap:12px;align-items:end;
-}
-.sf{display:flex;flex-direction:column;gap:5px}
-.sf label{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:10px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.8px;
-  color:rgba(255,255,255,.35);
-}
-.sf input{
-  height:44px;
-  background:rgba(255,255,255,.08);
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:var(--r);
-  color:#fff;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:17px;font-weight:500;
-  padding:0 14px;outline:none;
-  transition:border-color .18s,background .18s;
-  -moz-appearance:textfield;
-}
-.sf input::-webkit-outer-spin-button,
-.sf input::-webkit-inner-spin-button{-webkit-appearance:none}
-.sf input::placeholder{color:rgba(255,255,255,.18);font-size:14px;font-weight:400}
-.sf input:focus{border-color:rgba(255,255,255,.38);background:rgba(255,255,255,.12)}
-.btn-consultar{
-  height:44px;background:var(--blue);color:#fff;border:none;
-  border-radius:var(--r);font-family:'IBM Plex Sans',system-ui,sans-serif;
-  font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
-  padding:0 22px;cursor:pointer;white-space:nowrap;
-  display:flex;align-items:center;gap:7px;
-  transition:background .15s,transform .1s;
-}
-.btn-consultar:hover{background:var(--blue-dk)}
-.btn-consultar:active{transform:scale(.97)}
-.btn-consultar svg{width:14px;height:14px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;flex-shrink:0}
-.btn-consultar.spin svg{animation:rot .8s linear infinite}
-@keyframes rot{to{transform:rotate(360deg)}}
-
-/* ── MAIN ── */
-.page-body{max-width:820px;margin:0 auto;padding:2.5rem 2.5rem 5rem}
-
-/* ── IDLE ── */
-.idle-msg{
-  display:flex;flex-direction:column;align-items:center;
-  padding:3rem 1rem;text-align:center;color:var(--ink3);
-}
-.idle-msg svg{width:40px;height:40px;stroke:var(--ink4);margin-bottom:1rem}
-.idle-msg strong{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;font-weight:600;color:var(--ink2);display:block;margin-bottom:.3rem}
-.idle-msg p{font-size:13px}
-
-/* ── RESULT ── */
-#result{animation:fadeUp .3s ease}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-
-/* NOT FOUND / ERROR */
-.nf{
-  background:var(--card);border:1px solid var(--line);
-  border-radius:var(--r-xl);padding:2.5rem 2rem;text-align:center;
-}
-.nf svg{width:38px;height:38px;stroke:var(--ink4);margin-bottom:.9rem}
-.nf strong{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;font-weight:600;display:block;margin-bottom:.4rem}
-.nf p{font-size:13px;color:var(--ink2)}
-
-/* ── EXPEDIENTE CARD ── */
-.ec{background:var(--card);border:1px solid var(--line);border-radius:var(--r-xl);overflow:hidden}
-
-/* Banner anulado */
-.anul-banner{
-  background:var(--red-bg);border-bottom:1px solid rgba(139,32,32,.1);
-  padding:.6rem 1.75rem;
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:11px;font-weight:600;
-  color:var(--red);text-transform:uppercase;letter-spacing:.5px;
-  display:flex;align-items:center;gap:7px;
-}
-
-/* Header azul */
-.ec-top{
-  background:var(--blue);padding:1.5rem 1.75rem;
-  display:flex;justify-content:space-between;align-items:flex-start;
-  flex-wrap:wrap;gap:.75rem;
-}
-.ec-id small{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:9px;font-weight:600;
-  letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.55);
-  display:block;margin-bottom:3px;
-}
-.ec-id h2{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:clamp(18px,3.5vw,26px);
-  font-weight:700;letter-spacing:-.4px;color:#fff;line-height:1;
-}
-
-/* Pill de estado */
-.pill{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:5px 13px;border-radius:99px;
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:10px;font-weight:600;
-  letter-spacing:.3px;text-transform:uppercase;
-}
-.pill .d{width:6px;height:6px;border-radius:50%}
-.pill-green{background:var(--green-bg);color:var(--green)}.pill-green .d{background:var(--green)}
-.pill-amber{background:var(--amber-bg);color:var(--amber)}.pill-amber .d{background:var(--amber)}
-.pill-red  {background:var(--red-bg);  color:var(--red)  }.pill-red   .d{background:var(--red)}
-.pill-blue {background:rgba(255,255,255,.15);color:#fff   }.pill-blue  .d{background:#9FE1CB}
-
-/* Sector actual destacado */
-.ec-sector{
-  background:var(--blue-bg);border-bottom:1px solid rgba(26,79,138,.12);
-  padding:.9rem 1.75rem;display:flex;align-items:center;gap:10px;
-}
-.ec-sector-icon{
-  width:34px;height:34px;flex-shrink:0;background:var(--blue);
-  border-radius:7px;display:flex;align-items:center;justify-content:center;
-}
-.ec-sector-icon svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round}
-.ec-sector-lbl{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--blue);margin-bottom:1px}
-.ec-sector-val{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;font-weight:600;color:var(--blue-dk)}
-
-/* Cuerpo */
-.ec-body{padding:1.5rem 1.75rem}
-
-.ec-grid{
-  display:grid;grid-template-columns:1fr 1fr;
-  gap:.8rem 2rem;margin-bottom:1.4rem;
-}
-.ec-field .lbl{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:9px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.9px;color:var(--ink3);margin-bottom:2px;
-}
-.ec-field .val{font-size:14px;color:var(--ink);font-weight:400;line-height:1.4}
-.ec-field .val.hi{color:var(--blue);font-weight:500}
-
-.motivo{
-  background:var(--paper);border-left:3px solid var(--blue);
-  border-radius:0 var(--r) var(--r) 0;
-  padding:.85rem 1.1rem;margin-bottom:1.75rem;
-}
-.motivo .lbl{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:9px;font-weight:600;letter-spacing:.9px;text-transform:uppercase;color:var(--ink3);margin-bottom:4px}
-.motivo p{font-size:14px;color:var(--ink);line-height:1.6}
-
-/* ── TABLA DE MOVIMIENTOS ── */
-.movs-hd{
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:9px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.9px;color:var(--ink3);
-  padding-top:1.25rem;border-top:1px solid var(--line2);
-  margin-bottom:1rem;
-  display:flex;align-items:center;justify-content:space-between;
-}
-.movs-count{
-  background:var(--paper);border-radius:99px;
-  padding:2px 10px;font-size:10px;color:var(--ink2);
-}
-
-.tbl-wrap{overflow-x:auto;border-radius:var(--r);border:1px solid var(--line)}
-table.movs{
-  width:100%;border-collapse:collapse;
-  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:12px;
-}
-table.movs thead tr{background:var(--ink);color:#fff}
-table.movs thead th{
-  padding:10px 13px;text-align:left;
-  font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
-  white-space:nowrap;
-}
-table.movs tbody tr{border-bottom:1px solid var(--line2);transition:background .12s;font-size:13px}
-table.movs tbody tr:last-child{border-bottom:none}
-table.movs tbody tr:hover{background:var(--paper)}
-table.movs tbody tr.fila-actual{background:var(--blue-bg)}
-table.movs tbody tr.fila-actual td{color:var(--blue-dk)}
-table.movs td{
-  padding:10px 13px;vertical-align:top;
-  color:var(--ink2);line-height:1.5;
-}
-table.movs td.fecha{white-space:nowrap;color:var(--ink3);font-size:11px}
-table.movs td.sector{font-weight:600;color:var(--ink);white-space:nowrap}
-table.movs td.obs{font-size:12px;max-width:260px;color:var(--ink2)}
-.badge-actual{
-  display:inline-block;font-size:9px;padding:1px 7px;border-radius:99px;
-  background:var(--blue-bg);color:var(--blue);font-weight:600;
-  letter-spacing:.3px;text-transform:uppercase;margin-left:5px;
-  vertical-align:middle;font-style:normal;font-family:'IBM Plex Sans',system-ui,sans-serif;
-}
-.no-movs{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:12px;color:var(--ink3);font-style:italic;padding:.5rem 0}
-
-/* ── FOOTER ── */
-.ft{
-  border-top:1px solid var(--line);padding:1.75rem 2.5rem;
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
-}
-.ft p{font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:10px;color:var(--ink4);letter-spacing:.3px}
-
-@media(max-width:620px){
-  .hd{padding:0 1rem}
-  .hero{padding:2.5rem 1rem 0}
-  .search-row{grid-template-columns:1fr 70px;gap:8px}
-  .search-row .sf:nth-child(3){grid-column:1}
-  .search-row .btn-consultar{grid-column:1/-1;justify-content:center}
-  .page-body{padding:2rem 1rem 3rem}
-  .ec-grid{grid-template-columns:1fr}
-  .ec-top{flex-direction:column}
-  table.movs thead th:nth-child(5),
-  table.movs td:nth-child(5){display:none}
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Consulta pública de expedientes municipales y recorrido por sectores.">
+  <title>Consulta de Expedientes — Municipalidad de Pocito</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
 </head>
 <body>
-
-<header class="hd">
-  <div class="hd-brand">
-    <div class="hd-shield">
-      <svg viewBox="0 0 24 24"><path d="M12 3L4 7v5c0 4.5 3.3 8.7 8 9.9 4.7-1.2 8-5.4 8-9.9V7L12 3z"/></svg>
+  <header class="site-header" aria-label="Encabezado institucional">
+    <a class="brand" href="./" aria-label="Ir al inicio de consulta de expedientes">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img"><path d="M12 2.75 4.5 6.55v5.35c0 4.55 3.18 8.7 7.5 9.35 4.32-.65 7.5-4.8 7.5-9.35V6.55L12 2.75Zm0 2.12 5.6 2.84v4.19c0 3.45-2.25 6.65-5.6 7.34-3.35-.69-5.6-3.89-5.6-7.34V7.71L12 4.87Z"/></svg>
+      </span>
+      <span>
+        <strong>Municipalidad de Pocito</strong>
+        <small>San Juan · Sistema SIGAP</small>
+      </span>
+    </a>
+    <div class="sync-status" id="syncStatus" aria-live="polite">
+      <span class="pulse" aria-hidden="true"></span>
+      <span>Consultando estado del sistema…</span>
     </div>
-    <span class="hd-name">Municipalidad de Pocito</span>
-    <span class="hd-sep"></span>
-    <span class="hd-sub">San Juan</span>
-  </div>
-  <div class="hd-dot-wrap">
-    <span class="hd-dot"></span>
-    <span id="sync-txt">Sistema activo</span>
-  </div>
-</header>
+  </header>
 
-<section class="hero">
-  <div class="hero-inner">
-    <div class="hero-eyebrow">Servicio digital municipal</div>
-    <h1>Consulta de Expedientes</h1>
-    <p class="hero-desc">Aquí obtendrá información sobre el estado de expedientes y notas iniciadas en la Municipalidad.</p>
+  <main>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Servicio digital municipal</p>
+          <h1 id="pageTitle">Consulta de expedientes</h1>
+          <p class="lead">Buscá un expediente y revisá su estado actual, sector donde se encuentra y el historial de movimientos entre áreas municipales.</p>
+          <div class="hero-badges" aria-label="Características del servicio">
+            <span>Consulta pública</span>
+            <span>Historial por sectores</span>
+            <span>Datos actualizados desde SIGAP</span>
+          </div>
+        </div>
 
-    <div class="search-box">
-      <div class="search-row">
-        <div class="sf">
-          <label for="n-num">Número</label>
-          <input id="n-num" type="text" inputmode="numeric" placeholder="1200" maxlength="10" autocomplete="off">
-        </div>
-        <div class="sf">
-          <label for="n-let">Letra</label>
-          <input id="n-let" type="text" placeholder="A" maxlength="1" autocomplete="off">
-        </div>
-        <div class="sf">
-          <label for="n-ano">Año</label>
-          <input id="n-ano" type="text" inputmode="numeric" placeholder="2024" maxlength="4" autocomplete="off">
-        </div>
-        <button class="btn-consultar" id="btn-q" onclick="buscar()">
-          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Consultar
-        </button>
+        <form class="search-card" id="searchForm" novalidate>
+          <div class="search-card-head">
+            <div>
+              <p class="form-kicker">Buscar expediente</p>
+              <h2>Ingresá los datos de consulta</h2>
+            </div>
+            <span class="mode-pill">Vista pública</span>
+          </div>
+
+          <label class="field field-wide" for="smartSearch">
+            <span>Número de expediente</span>
+            <input id="smartSearch" name="smartSearch" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej.: 1200, 1200/2024 o 1200-A-2024" aria-describedby="searchHelp">
+          </label>
+          <p class="field-help" id="searchHelp">Podés escribir solo el número y completar el año abajo, o pegar un formato completo.</p>
+
+          <div class="fields-grid">
+            <label class="field" for="numero">
+              <span>Número</span>
+              <input id="numero" name="numero" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="1200" required>
+            </label>
+            <label class="field" for="letra">
+              <span>Letra <em>opcional</em></span>
+              <input id="letra" name="letra" type="text" autocomplete="off" maxlength="1" placeholder="A">
+            </label>
+            <label class="field" for="ano">
+              <span>Año</span>
+              <input id="ano" name="ano" type="text" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="2024" required>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-primary" id="searchButton" type="submit">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M10.75 4a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.5 10.75a8.25 8.25 0 1 1 14.47 5.42l4.18 4.18-1.06 1.06-4.18-4.18A8.25 8.25 0 0 1 2.5 10.75Z"/></svg>
+              </span>
+              <span>Consultar expediente</span>
+            </button>
+            <button class="btn-secondary" id="clearButton" type="button">Limpiar</button>
+          </div>
+
+          <div class="form-message" id="formMessage" role="alert" aria-live="polite"></div>
+        </form>
       </div>
-    </div>
-  </div>
-</section>
+    </section>
 
-<div class="page-body">
-  <div id="result">
-    <div class="idle-msg">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.3"><path d="M9 12h6m-6 4h6M9 8h3M5 6a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6z" stroke-linecap="round"/></svg>
-      <strong>Ingresá los datos del expediente</strong>
-      <p>Completá número, letra y año para consultar el estado de tu trámite.</p>
-    </div>
-  </div>
-</div>
-
-<footer class="ft">
-  <p>© Municipalidad de Pocito · Sistema SIGAP · Consulta pública de expedientes</p>
-  <p>Los datos se actualizan periódicamente desde el sistema interno.</p>
-</footer>
-
-<script>
-const estadoMap = {
-  E:'En trámite', A:'Archivado', X:'Terminado',
-  P:'Paralizado', C:'Cerrado', I:'Ingresado', T:'Terminado'
-};
-const estadoPill = {
-  E:'pill-blue', I:'pill-blue',
-  A:'pill-green', X:'pill-green', T:'pill-green',
-  P:'pill-amber', C:'pill-amber'
-};
-
-function fmtF(s){
-  if(!s||s.startsWith('1900'))return '—';
-  const d=new Date(s.replace(' ','T'));
-  if(isNaN(d))return s;
-  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
-    +'<br><span style="font-size:10px;color:var(--ink3)">'+
-    d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+'</span>';
-}
-function fmtFShort(s){
-  if(!s||s.startsWith('1900'))return '—';
-  const d=new Date(s.replace(' ','T'));
-  if(isNaN(d))return s;
-  return d.toLocaleDateString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
-}
-function fmt(v){return(!v||v==='0'||v===0||v==='0000-00-00 00:00:00')?'—':v}
-function esc(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-async function buscar(){
-  const num  = document.getElementById('n-num').value.trim();
-  const let_ = document.getElementById('n-let').value.trim().toUpperCase();
-  const ano  = document.getElementById('n-ano').value.trim();
-
-  if(!num||!ano){
-    setResult(errHtml('Ingresá al menos el número y el año del expediente.'));
-    return;
-  }
-
-  const btn=document.getElementById('btn-q');
-  btn.classList.add('spin'); btn.disabled=true;
-  setResult('');
-
-  try{
-    const p=new URLSearchParams({numero:num,ano});
-    if(let_) p.append('letra',let_);
-    const resp=await fetch('./api/consulta.php?'+p);
-    if(!resp.ok) throw new Error('HTTP '+resp.status);
-    const data=await resp.json();
-
-    if(data.error) setResult(errHtml(data.error));
-    else if(!data.expediente) setResult(nfHtml(num,let_,ano));
-    else{
-      const exp=data.expediente;
-      exp.movs=data.movimientos||[];
-      setResult(renderExp(exp));
-    }
-  }catch(e){
-    setResult(errHtml('No se pudo conectar con el servidor. Intentá más tarde.'));
-    console.error(e);
-  }finally{
-    btn.classList.remove('spin'); btn.disabled=false;
-  }
-}
-
-function setResult(html){
-  const el=document.getElementById('result');
-  el.innerHTML=html;
-  el.style.animation='none';
-  requestAnimationFrame(()=>el.style.animation='');
-}
-
-function errHtml(msg){
-  return `<div class="nf">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.3"><circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01" stroke-linecap="round"/></svg>
-    <strong>No se pudo realizar la consulta</strong><p>${esc(msg)}</p>
-  </div>`;
-}
-function nfHtml(n,l,a){
-  return `<div class="nf">
-    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.3"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-linecap="round"/></svg>
-    <strong>Expediente no encontrado</strong>
-    <p>No existe el expediente <b>N° ${esc(n)}${l?'/'+esc(l):''}</b> del año <b>${esc(a)}</b>.<br>Verificá los datos o consultá en Mesa de Entradas.</p>
-  </div>`;
-}
-
-function renderExp(e){
-  const pClass = estadoPill[e.ESTADO]||'pill-blue';
-  const pLabel = estadoMap[e.ESTADO]||e.ESTADO;
-
-  const anulBanner = e.ANULADO==1
-    ? `<div class="anul-banner">⚠ Expediente anulado</div>` : '';
-
-  // Sector actual: usar SECTACTUAL_NOMBRE si existe, si no el código
-  const sectorActual = (e.SECTACTUAL_NOMBRE && e.SECTACTUAL_NOMBRE.trim() && e.SECTACTUAL_NOMBRE!=='—')
-    ? e.SECTACTUAL_NOMBRE : (e.SECTACTUAL||'—');
-
-  // ── TABLA DE MOVIMIENTOS ──
-  let movHtml = '';
-  if(e.movs && e.movs.length){
-    const filas = e.movs.map((m,i)=>{
-      const sectorNombre = (m.SECTORACTUAL_NOMBRE && m.SECTORACTUAL_NOMBRE.trim())
-        ? m.SECTORACTUAL_NOMBRE : (m.SECTORACTUAL||'—');
-      const esActual = i===0;
-      return `<tr class="${esActual?'fila-actual':''}">
-        <td class="fecha">${fmtF(m.FECHAHORA)}</td>
-        <td class="sector">${esc(sectorNombre)}${esActual?'<span class="badge-actual">Actual</span>':''}</td>
-        <td>${esc(fmt(m.SECTORPROVENIENTE))}</td>
-        <td class="obs">${esc(fmt(m.OBSERVACIONES))}</td>
-        <td>${esc(fmt(m.ESTADOACTUAL))}</td>
-        <td style="text-align:center">${fmt(m.FOJAS)}</td>
-      </tr>`;
-    }).join('');
-
-    movHtml = `
-    <div class="tbl-wrap">
-      <table class="movs">
-        <thead>
-          <tr>
-            <th>Fecha y hora</th>
-            <th>Sector</th>
-            <th>Proveniente de</th>
-            <th>Observaciones</th>
-            <th>Estado</th>
-            <th>Fojas</th>
-          </tr>
-        </thead>
-        <tbody>${filas}</tbody>
-      </table>
-    </div>`;
-  } else {
-    movHtml = `<p class="no-movs">Sin movimientos registrados.</p>`;
-  }
-
-  return `
-  <div class="ec">
-    ${anulBanner}
-    <div class="ec-top">
-      <div class="ec-id">
-        <small>Expediente</small>
-        <h2>N° ${esc(e.NUMERO)}${e.LETRA&&e.LETRA.trim()?'/'+esc(e.LETRA.trim()):''} &nbsp;·&nbsp; ${esc(e.ANO)}</h2>
+    <section class="content-shell" aria-live="polite">
+      <div class="result-panel" id="resultPanel">
+        <article class="empty-state">
+          <span class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 3.5h7.25L19 8.25V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 2-1.5Zm7 1.8V8.5h3.2L14 5.3ZM7 5v15h10.5V10H12.5V5H7Zm2 8h6v1.5H9V13Zm0 3h6v1.5H9V16Zm0-6h3v1.5H9V10Z"/></svg>
+          </span>
+          <p class="eyebrow">Inicio</p>
+          <h2>Listo para consultar</h2>
+          <p>Completá número y año para ver el estado del expediente, su área actual y el recorrido registrado por SIGAP.</p>
+          <div class="empty-tips">
+            <span>Ejemplo: número <strong>1</strong>, año <strong>2024</strong></span>
+            <span>La letra es opcional si no corresponde.</span>
+          </div>
+        </article>
       </div>
-      <span class="pill ${pClass}"><span class="d"></span>${pLabel}</span>
-    </div>
+    </section>
+  </main>
 
-    <div class="ec-sector">
-      <div class="ec-sector-icon">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M9 22V12h6v10"/></svg>
-      </div>
-      <div>
-        <div class="ec-sector-lbl">Sector actual</div>
-        <div class="ec-sector-val">${esc(sectorActual)}</div>
-      </div>
-    </div>
-
-    <div class="ec-body">
-      <div class="ec-grid">
-        <div class="ec-field">
-          <div class="lbl">Fecha de inicio</div>
-          <div class="val">${fmtFShort(e.FECHAINICIO)}</div>
-        </div>
-        <div class="ec-field">
-          <div class="lbl">Tipo de expediente</div>
-          <div class="val">${fmt(e.TIPOEXPEDIENTE)}</div>
-        </div>
-        <div class="ec-field">
-          <div class="lbl">Iniciado por</div>
-          <div class="val hi">${esc(fmt(e.EXTERNOINICIA))}</div>
-        </div>
-        <div class="ec-field">
-          <div class="lbl">Sector iniciador</div>
-          <div class="val">${esc(fmt(e.SECTORINICIA_NOMBRE||e.SECTORINICIA))}</div>
-        </div>
-        <div class="ec-field">
-          <div class="lbl">Estado</div>
-          <div class="val">${pLabel}</div>
-        </div>
-        <div class="ec-field">
-          <div class="lbl">Última actualización</div>
-          <div class="val">${fmtFShort(e.updated_at||e.FECHACARGA)}</div>
-        </div>
-      </div>
-
-      ${e.MOTIVO&&e.MOTIVO.trim()&&e.MOTIVO!=='—'?
-        `<div class="motivo">
-          <div class="lbl">Motivo / Asunto</div>
-          <p>${esc(e.MOTIVO)}</p>
-        </div>`:''
-      }
-
-      <div class="movs-hd">
-        Recorrido del expediente
-        <span class="movs-count">${e.movs?e.movs.length:0} movimientos</span>
-      </div>
-      ${movHtml}
-    </div>
-  </div>`;
-}
-
-// ── Navegación entre campos con Enter/Tab ──
-// Número → Enter salta a Letra (no busca)
-document.getElementById('n-num').addEventListener('keydown', ev => {
-  ev.target.value = ev.target.value.replace(/[^0-9]/g, '');
-  if (ev.key === 'Enter') {
-    ev.preventDefault();
-    document.getElementById('n-let').focus();
-  }
-});
-document.getElementById('n-num').addEventListener('input', ev => {
-  ev.target.value = ev.target.value.replace(/[^0-9]/g, '');
-});
-
-// Letra → auto-uppercase, salta a Año al tipear 1 carácter
-document.getElementById('n-let').addEventListener('input', ev => {
-  ev.target.value = ev.target.value.toUpperCase();
-  if (ev.target.value.length === 1) {
-    document.getElementById('n-ano').focus();
-  }
-});
-document.getElementById('n-let').addEventListener('keydown', ev => {
-  if (ev.key === 'Enter') {
-    ev.preventDefault();
-    document.getElementById('n-ano').focus();
-  }
-});
-
-// Año → Enter dispara la búsqueda (todos los campos completados)
-document.getElementById('n-ano').addEventListener('keydown', ev => {
-  if (ev.key === 'Enter') {
-    ev.preventDefault();
-    buscar();
-  }
-});
-document.getElementById('n-ano').addEventListener('input', ev => {
-  ev.target.value = ev.target.value.replace(/[^0-9]/g, '');
-  // Auto-buscar cuando se completan 4 dígitos del año
-  if (ev.target.value.length === 4) {
-    buscar();
-  }
-});
-
-// ── Status sync ──
-fetch('./api/status.php')
-  .then(r=>r.json())
-  .then(d=>{
-    if(d.ultima_sync){
-      const f=new Date(d.ultima_sync.replace(' ','T'));
-      document.getElementById('sync-txt').textContent=
-        'Actualizado '+f.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
-        +' '+f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
-    }
-  }).catch(()=>{});
-</script>
+  <footer class="site-footer">
+    <p>© Municipalidad de Pocito · Consulta pública de expedientes</p>
+    <p>La información publicada es orientativa y se actualiza periódicamente desde el sistema interno.</p>
+  </footer>
 </body>
 </html>
