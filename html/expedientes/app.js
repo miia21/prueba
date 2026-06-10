@@ -427,7 +427,18 @@
 
   function formToObject(form) {
     var obj = {};
-    Array.prototype.forEach.call(new FormData(form).entries(), function (entry) { obj[entry[0]] = entry[1]; });
+    if (window.FormData) {
+      var data = new FormData(form);
+      if (typeof data.forEach === 'function') {
+        data.forEach(function (value, key) { obj[key] = value; });
+        return obj;
+      }
+    }
+    Array.prototype.forEach.call(form.elements, function (field) {
+      if (!field.name || field.disabled) return;
+      if ((field.type === 'checkbox' || field.type === 'radio') && !field.checked) return;
+      obj[field.name] = field.value;
+    });
     return obj;
   }
 
