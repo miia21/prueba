@@ -13,6 +13,3 @@ const EXPEDIENTES_INTERNAL_TOKEN = 'cambiar-por-un-token-largo';
 
 // Opcional: ruta de auditoría. Si no se define, usa el directorio temporal del sistema.
 // const EXPEDIENTES_AUDIT_LOG = '/var/log/expedientes/audit.log';
-
-// Opcional: archivo local de usuarios para login/roles.
-// const EXPEDIENTES_USERS_FILE = __DIR__ . '/data/users.json';

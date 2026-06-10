@@ -7,5 +7,5 @@ auth_json([
     'ok' => true,
     'authenticated' => (bool)$user,
     'user' => $user ? auth_public_user($user) : null,
-    'setup_required' => count(auth_load_users()) === 0,
+    'setup_required' => auth_count_users() === 0,
 ]);

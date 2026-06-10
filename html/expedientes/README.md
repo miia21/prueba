@@ -9,7 +9,7 @@ Aplicación web ubicada en `html/expedientes/` para consultar expedientes munici
 - `app.js`: validaciones, consumo de API, paginación de movimientos, login, dashboard y usuarios.
 - `api/config.php`: configuración compartida por variables de entorno o `config.local.php` no versionado.
 - `api/config.local.example.php`: plantilla segura para configurar el servidor.
-- `api/auth.php`: helpers de sesión y almacenamiento local de usuarios.
+- `api/auth.php`: helpers de sesión y almacenamiento de usuarios en la tabla MySQL `usuarios_expe2`.
 - `api/me.php`, `api/setup.php`, `api/login.php`, `api/logout.php`: endpoints de autenticación.
 - `api/users.php`: gestión básica de usuarios para administradores.
 - `api/dashboard.php`: métricas internas para empleados autenticados.
@@ -55,24 +55,16 @@ const EXPEDIENTES_DB_PASS = 'clave_mysql';
 
 ## Login y usuarios
 
-La primera vez que se abre la sección interna y no existe archivo de usuarios, la app muestra un formulario para crear el primer administrador. Los usuarios se guardan en JSON local, por defecto en:
+La primera vez que se abre la sección interna y no existen usuarios en la base, la app muestra un formulario para crear el primer administrador. Los usuarios se guardan en la tabla MySQL `usuarios_expe2`.
 
-```text
-html/expedientes/api/data/users.json
-```
-
-Esa ruta está ignorada por Git. También puede configurarse con:
-
-```text
-EXPEDIENTES_USERS_FILE=/ruta/segura/users.json
-```
+La app intenta crear esa tabla automáticamente desde `api/auth.php` con `CREATE TABLE IF NOT EXISTS`. Si el usuario MySQL configurado no tiene permiso `CREATE`, importar manualmente `usuarios_expe2.sql` antes de usar el login.
 
 Roles disponibles:
 
 - `admin`: ve dashboard y gestiona usuarios.
 - `empleado`: ve dashboard interno.
 
-Esta gestión es suficiente para una primera versión interna, pero no reemplaza una solución institucional completa con base de datos de usuarios, recuperación de contraseña, 2FA o integración con directorio municipal.
+Esta gestión es suficiente para una primera versión interna, pero no reemplaza una solución institucional completa con recuperación de contraseña, 2FA o integración con directorio municipal.
 
 ## Auditoría de consultas
 
@@ -174,7 +166,7 @@ Requiere usuario `admin`.
 
 ## Pendientes sugeridos
 
-- Migrar usuarios desde JSON local a tablas con migraciones si se necesita administración multi-servidor.
+- Agregar migraciones formales/versionadas para administrar cambios futuros en `usuarios_expe2`.
 - Agregar recuperación de contraseña, 2FA y políticas de expiración.
 - Revisar normativamente qué datos de `MOTIVO` y `OBSERVACIONES` deben mostrarse en vista pública.
 - Migrar auditoría desde archivo plano a una tabla controlada si se requiere reporting institucional.

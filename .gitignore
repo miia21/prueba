@@ -10,5 +10,5 @@ html/expedientes/api/logs/
 __pycache__/
 *.py[cod]
 
-# Usuarios locales de la app web
+# Datos locales legados de la app web
 html/expedientes/api/data/

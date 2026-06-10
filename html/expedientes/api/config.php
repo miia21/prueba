@@ -46,15 +46,6 @@ function expediente_audit_log_path(): string {
     );
 }
 
-
-function expediente_users_file_path(): string {
-    return expediente_config_value(
-        'EXPEDIENTES_USERS_FILE',
-        'EXPEDIENTES_USERS_FILE',
-        __DIR__ . '/data/users.json'
-    );
-}
-
 function expediente_pdo(): PDO {
     $cfg = expediente_db_config();
     if ($cfg['user'] === '') {

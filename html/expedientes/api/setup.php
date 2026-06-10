@@ -5,8 +5,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     auth_json(['error' => 'Método no permitido.'], 405);
 }
 
-$users = auth_load_users();
-if (count($users) > 0) {
+if (auth_count_users() > 0) {
     auth_json(['error' => 'La configuración inicial ya fue realizada.'], 409);
 }
 
@@ -22,17 +21,16 @@ if (!auth_validate_password($password)) {
     auth_json(['error' => 'La contraseña debe tener al menos 8 caracteres.'], 400);
 }
 
-$user = [
+$user = auth_insert_user([
     'id' => bin2hex(random_bytes(16)),
     'username' => $username,
     'name' => $name !== '' ? $name : $username,
     'role' => 'admin',
     'active' => true,
     'password_hash' => password_hash($password, PASSWORD_DEFAULT),
-    'created_at' => date('c'),
-    'last_login_at' => date('c'),
-];
-auth_save_users([$user]);
+    'created_at' => auth_now(),
+    'last_login_at' => auth_now(),
+]);
 
 auth_start_session();
 session_regenerate_id(true);
