@@ -3,6 +3,8 @@ const API = {
   status: './api/status.php',
 };
 
+const INITIAL_LIMIT = 12;
+
 const ESTADOS = {
   I: { label: 'Ingresado', className: 'status-progress' },
   E: { label: 'En trámite', className: 'status-progress' },
@@ -12,6 +14,13 @@ const ESTADOS = {
   C: { label: 'Cerrado', className: 'status-paused' },
   P: { label: 'Paralizado', className: 'status-paused' },
   N: { label: 'Anulado', className: 'status-cancelled' },
+};
+
+const state = {
+  lastParams: null,
+  expediente: null,
+  movimientos: [],
+  meta: null,
 };
 
 const dom = {
@@ -152,8 +161,7 @@ async function consultarExpediente(event) {
     return;
   }
 
-  const query = new URLSearchParams({ numero: params.numero, ano: params.ano });
-  if (params.letra) query.set('letra', params.letra);
+  const query = buildQuery(params, 0);
 
   setLoading(true);
   renderLoading();
@@ -179,13 +187,28 @@ async function consultarExpediente(event) {
       return;
     }
 
-    renderExpediente(payload.expediente, payload.movimientos || []);
+    state.lastParams = params;
+    state.expediente = payload.expediente;
+    state.movimientos = payload.movimientos || [];
+    state.meta = payload.meta || null;
+    renderExpediente(state.expediente, state.movimientos, state.meta);
   } catch (error) {
     console.error(error);
     renderNotice('error', 'Servicio no disponible', 'No se pudo conectar con la API. Intentá nuevamente más tarde.');
   } finally {
     setLoading(false);
   }
+}
+
+function buildQuery(params, offset = 0) {
+  const query = new URLSearchParams({
+    numero: params.numero,
+    ano: params.ano,
+    limit: String(INITIAL_LIMIT),
+    offset: String(offset),
+  });
+  if (params.letra) query.set('letra', params.letra);
+  return query;
 }
 
 function statusToMessage(status) {
@@ -201,7 +224,7 @@ function expedienteId(expediente) {
   return `N° ${normalizeText(expediente.NUMERO)}${letraPart} · ${normalizeText(expediente.ANO)}`;
 }
 
-function renderExpediente(expediente, movimientos) {
+function renderExpediente(expediente, movimientos, meta = null) {
   const state = statusInfo(expediente.ESTADO);
   const sectorActual = normalizeText(expediente.SECTACTUAL_NOMBRE || expediente.SECTACTUAL);
   const sectorInicia = normalizeText(expediente.SECTORINICIA_NOMBRE || expediente.SECTORINICIA);
@@ -251,12 +274,57 @@ function renderExpediente(expediente, movimientos) {
         <section class="timeline-section" aria-labelledby="timelineTitle">
           <div class="section-title">
             <h3 id="timelineTitle">Historial de movimientos</h3>
-            <span class="count-pill">${movimientos.length} ${movimientos.length === 1 ? 'movimiento' : 'movimientos'}</span>
+            <span class="count-pill">${movementCountLabel(movimientos, meta)}</span>
           </div>
           ${renderTimeline(movimientos)}
+          ${renderLoadMore(meta)}
         </section>
       </div>
     </article>`;
+}
+
+function movementCountLabel(movimientos, meta) {
+  const total = Number(meta?.movimientos_total ?? movimientos.length);
+  const shown = movimientos.length;
+  if (total > shown) return `${shown} de ${total} movimientos`;
+  return `${total} ${total === 1 ? 'movimiento' : 'movimientos'}`;
+}
+
+function renderLoadMore(meta) {
+  if (!meta?.has_more) return '';
+  return `
+    <div class="load-more-wrap">
+      <button class="btn-load-more" id="loadMoreButton" type="button">Ver más movimientos</button>
+    </div>`;
+}
+
+async function loadMoreMovements() {
+  if (!state.lastParams || !state.meta?.has_more) return;
+  const button = document.getElementById('loadMoreButton');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Cargando movimientos…';
+  }
+
+  const nextOffset = state.movimientos.length;
+  const query = buildQuery(state.lastParams, nextOffset);
+
+  try {
+    const response = await fetch(`${API.consulta}?${query.toString()}`, { headers: { Accept: 'application/json' } });
+    const payload = await response.json();
+    if (!response.ok || payload?.error) {
+      throw new Error(payload?.error || statusToMessage(response.status));
+    }
+    state.movimientos = state.movimientos.concat(payload.movimientos || []);
+    state.meta = payload.meta || state.meta;
+    renderExpediente(state.expediente, state.movimientos, state.meta);
+  } catch (error) {
+    console.error(error);
+    if (button) {
+      button.disabled = false;
+      button.textContent = 'No se pudo cargar. Reintentar';
+    }
+  }
 }
 
 function dataItem(label, value) {
@@ -314,6 +382,10 @@ function renderTimelineItem(movimiento, isCurrent) {
 function clearForm() {
   dom.form.reset();
   setFormMessage('');
+  state.lastParams = null;
+  state.expediente = null;
+  state.movimientos = [];
+  state.meta = null;
   dom.result.innerHTML = `
     <article class="empty-state">
       <span class="empty-icon" aria-hidden="true">
@@ -352,6 +424,11 @@ function bindEvents() {
   });
   dom.ano.addEventListener('input', (event) => {
     event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4);
+  });
+  dom.result.addEventListener('click', (event) => {
+    if (event.target?.id === 'loadMoreButton') {
+      loadMoreMovements();
+    }
   });
 }
 

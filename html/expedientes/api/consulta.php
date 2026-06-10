@@ -1,14 +1,12 @@
 <?php
+require_once __DIR__ . '/config.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('X-Content-Type-Options: nosniff');
 
-const DB_HOST = 'localhost';
-const DB_NAME = 'sigap_expedientes';
-const DB_USER = 'admin_sql';
-const DB_PASS = 'MpSj*30673';
-const DB_CHARSET = 'utf8mb4';
-const DEFAULT_LIMIT = 80;
+const DEFAULT_LIMIT = 12;
+const MAX_LIMIT = 80;
 
 function json_response(array $payload, int $status = 200): void {
     http_response_code($status);
@@ -20,8 +18,30 @@ function clean_string(string $value): string {
     return trim(str_replace(["\0", "\r"], '', $value));
 }
 
+function bounded_int(string $value, int $default, int $min, int $max): int {
+    if ($value === '' || !preg_match('/^\d+$/', $value)) {
+        return $default;
+    }
+    return max($min, min($max, (int)$value));
+}
+
+function audit_event(string $event, array $context = []): void {
+    $entry = [
+        'ts' => date('c'),
+        'event' => $event,
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? null,
+        'user_agent' => substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 180),
+        'context' => $context,
+    ];
+    @file_put_contents(
+        expediente_audit_log_path(),
+        json_encode($entry, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . PHP_EOL,
+        FILE_APPEND | LOCK_EX
+    );
+}
+
 function is_internal_request(): bool {
-    $token = getenv('EXPEDIENTES_INTERNAL_TOKEN') ?: '';
+    $token = expediente_internal_token();
     if ($token === '') {
         return false;
     }
@@ -61,6 +81,7 @@ if (!is_array($rl) || !isset($rl['c'], $rl['t']) || $now - (int)$rl['t'] > 60) {
 $rl['c']++;
 @file_put_contents($key, json_encode($rl));
 if ($rl['c'] > 40) {
+    audit_event('rate_limited', ['ip_hash' => hash('sha256', $ip)]);
     json_response(['error' => 'Demasiadas solicitudes. Esperá un momento y volvé a intentar.'], 429);
 }
 
@@ -68,17 +89,23 @@ $numero = clean_string((string)($_GET['numero'] ?? ''));
 $letra = strtoupper(clean_string((string)($_GET['letra'] ?? '')));
 $ano = clean_string((string)($_GET['ano'] ?? ''));
 $vista = strtolower(clean_string((string)($_GET['vista'] ?? 'publica')));
+$limit = bounded_int(clean_string((string)($_GET['limit'] ?? '')), DEFAULT_LIMIT, 1, MAX_LIMIT);
+$offset = bounded_int(clean_string((string)($_GET['offset'] ?? '')), 0, 0, 10000);
 
 if ($numero === '' || $ano === '') {
+    audit_event('validation_error', ['reason' => 'missing_required']);
     json_response(['error' => 'Número y año son requeridos.'], 400);
 }
 if (!preg_match('/^\d{1,10}$/', $numero)) {
+    audit_event('validation_error', ['reason' => 'invalid_numero']);
     json_response(['error' => 'El número de expediente debe contener solo dígitos.'], 400);
 }
 if ($letra !== '' && !preg_match('/^[A-Z]$/', $letra)) {
+    audit_event('validation_error', ['reason' => 'invalid_letra']);
     json_response(['error' => 'La letra debe ser una única letra.'], 400);
 }
 if (!preg_match('/^\d{4}$/', $ano)) {
+    audit_event('validation_error', ['reason' => 'invalid_ano']);
     json_response(['error' => 'El año debe tener 4 dígitos.'], 400);
 }
 
@@ -86,20 +113,22 @@ $ano_int = (int)$ano;
 $numero_int = (int)$numero;
 $max_year = (int)date('Y') + 1;
 if ($ano_int < 1990 || $ano_int > $max_year) {
+    audit_event('validation_error', ['reason' => 'ano_out_of_range', 'ano' => $ano_int]);
     json_response(['error' => "Año fuera de rango. Debe estar entre 1990 y $max_year."], 400);
 }
 
-$internal = $vista === 'interna' && is_internal_request();
+$internalRequested = $vista === 'interna';
+$internal = $internalRequested && is_internal_request();
+if ($internalRequested && !$internal) {
+    audit_event('internal_denied', ['numero' => $numero_int, 'ano' => $ano_int]);
+    json_response(['error' => 'No autorizado para vista interna.'], 401);
+}
 
 try {
-    $pdo = new PDO(
-        'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET,
-        DB_USER,
-        DB_PASS,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
-    );
-} catch (PDOException $e) {
+    $pdo = expediente_pdo();
+} catch (Throwable $e) {
     error_log('consulta.php DB connection error: ' . $e->getMessage());
+    audit_event('db_connection_error');
     json_response(['error' => 'Error de base de datos. Intentá más tarde.'], 500);
 }
 
@@ -136,14 +165,30 @@ try {
     $expediente = $st->fetch();
 } catch (PDOException $e) {
     error_log('consulta.php expediente query error: ' . $e->getMessage());
+    audit_event('query_error', ['scope' => 'expediente']);
     json_response(['error' => 'Error al consultar el expediente.'], 500);
 }
 
 if (!$expediente) {
-    json_response(['expediente' => null, 'movimientos' => []]);
+    audit_event('consulta', ['numero' => $numero_int, 'ano' => $ano_int, 'found' => false]);
+    json_response([
+        'expediente' => null,
+        'movimientos' => [],
+        'meta' => [
+            'vista' => $internal ? 'interna' : 'publica',
+            'limit' => $limit,
+            'offset' => $offset,
+            'movimientos_total' => 0,
+            'has_more' => false,
+        ],
+    ]);
 }
 
 try {
+    $countSt = $pdo->prepare('SELECT COUNT(*) FROM expemovi WHERE NUMERO = :numero AND ANO = :ano');
+    $countSt->execute([':numero' => $numero_int, ':ano' => $ano_int]);
+    $movimientosTotal = (int)$countSt->fetchColumn();
+
     $st2 = $pdo->prepare("SELECT
         m.NUMERO, m.ANO,
         DATE_FORMAT(m.FECHAHORA,'%Y-%m-%d %H:%i:%s') AS FECHAHORA,
@@ -157,12 +202,18 @@ try {
     LEFT JOIN sectmuni s ON s.CODIGO = m.SECTORACTUAL
     WHERE m.NUMERO = :numero AND m.ANO = :ano
     ORDER BY m.FECHAHORA DESC
-    LIMIT " . DEFAULT_LIMIT);
-    $st2->execute([':numero' => $numero_int, ':ano' => $ano_int]);
+    LIMIT :limit OFFSET :offset");
+    $st2->bindValue(':numero', $numero_int, PDO::PARAM_INT);
+    $st2->bindValue(':ano', $ano_int, PDO::PARAM_INT);
+    $st2->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $st2->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $st2->execute();
     $movimientos = $st2->fetchAll();
 } catch (PDOException $e) {
     error_log('consulta.php movimientos query error: ' . $e->getMessage());
+    audit_event('query_error', ['scope' => 'movimientos']);
     $movimientos = [];
+    $movimientosTotal = 0;
 }
 
 if (!$internal) {
@@ -170,11 +221,28 @@ if (!$internal) {
     $movimientos = array_map('public_movimiento', $movimientos);
 }
 
+$auditContext = [
+    'numero' => $numero_int,
+    'ano' => $ano_int,
+    'letra' => $letra,
+    'found' => true,
+    'vista' => $internal ? 'interna' : 'publica',
+    'limit' => $limit,
+    'offset' => $offset,
+    'movimientos_returned' => count($movimientos),
+    'movimientos_total' => $movimientosTotal,
+];
+audit_event('consulta', $auditContext);
+
 json_response([
     'expediente' => $expediente,
     'movimientos' => $movimientos,
     'meta' => [
         'vista' => $internal ? 'interna' : 'publica',
-        'movimientos_limit' => DEFAULT_LIMIT,
+        'limit' => $limit,
+        'offset' => $offset,
+        'movimientos_total' => $movimientosTotal,
+        'returned' => count($movimientos),
+        'has_more' => ($offset + count($movimientos)) < $movimientosTotal,
     ],
 ]);

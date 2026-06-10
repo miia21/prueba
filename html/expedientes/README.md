@@ -6,7 +6,9 @@ Aplicación web ubicada en `html/expedientes/` para consultar expedientes munici
 
 - `index.html`: entrada principal de la interfaz.
 - `styles.css`: estilos visuales, diseño responsive, tarjetas, badges y línea de tiempo.
-- `app.js`: validaciones, consumo de API y renderizado de resultados.
+- `app.js`: validaciones, consumo de API, paginación de movimientos y renderizado de resultados.
+- `api/config.php`: configuración compartida por variables de entorno o `config.local.php` no versionado.
+- `api/config.local.example.php`: plantilla segura para configurar el servidor.
 - `api/consulta.php`: endpoint de consulta de expedientes y movimientos.
 - `api/status.php`: endpoint de estado básico/última actualización.
 
@@ -21,6 +23,47 @@ La sincronización de datos se mantiene separada y no forma parte de esta versi�
 - `sube expedientes/nssm.exe`
 - `sube expedientes/config.ini`
 - `sube expedientes/last_sync.txt`
+
+## Configuración
+
+La app ya no necesita credenciales hardcodeadas en `consulta.php` ni `status.php`. La configuración se resuelve en este orden:
+
+1. Variables de entorno `EXPEDIENTES_*`.
+2. Archivo local no versionado `html/expedientes/api/config.local.php`.
+3. Valores mínimos por defecto para desarrollo local.
+
+Para configurar por archivo local:
+
+```bash
+cp html/expedientes/api/config.local.example.php html/expedientes/api/config.local.php
+```
+
+Completar en `config.local.php`:
+
+```php
+const EXPEDIENTES_DB_HOST = 'localhost';
+const EXPEDIENTES_DB_NAME = 'sigap_expedientes';
+const EXPEDIENTES_DB_USER = 'usuario_mysql';
+const EXPEDIENTES_DB_PASS = 'clave_mysql';
+```
+
+`config.local.php` está ignorado por Git y no debe subirse al repositorio.
+
+## Auditoría de consultas
+
+`api/consulta.php` registra eventos de auditoría en JSON Lines:
+
+- consultas exitosas o no encontradas;
+- errores de validación;
+- rate limit;
+- intentos no autorizados de vista interna;
+- errores de conexión o consulta.
+
+Por defecto se escribe en el directorio temporal del sistema como `expedientes_audit.log`. Se puede personalizar con:
+
+```text
+EXPEDIENTES_AUDIT_LOG=/var/log/expedientes/audit.log
+```
 
 ## Cómo probar
 
@@ -39,7 +82,7 @@ http://SERVIDOR/html/expedientes/
 La app consume estos endpoints relativos:
 
 ```text
-./api/consulta.php?numero=1&ano=2024
+./api/consulta.php?numero=1&ano=2024&limit=12&offset=0
 ./api/status.php
 ```
 
@@ -61,6 +104,8 @@ La letra es opcional en la interfaz porque la estructura actual usa `NUMERO` y `
 - `ano` requerido, 4 dígitos, entre 1990 y el año próximo al actual.
 - `letra` opcional, una letra.
 - `vista` opcional. Por defecto devuelve vista `publica`.
+- `limit` opcional, entre 1 y 80. Por defecto devuelve 12 movimientos.
+- `offset` opcional, desde 0. Permite paginar movimientos.
 
 ### Respuesta pública
 
@@ -70,23 +115,55 @@ La letra es opcional en la interfaz porque la estructura actual usa `NUMERO` y `
   "movimientos": [],
   "meta": {
     "vista": "publica",
-    "movimientos_limit": 80
+    "limit": 12,
+    "offset": 0,
+    "movimientos_total": 24,
+    "returned": 12,
+    "has_more": true
   }
 }
 ```
 
-La vista pública oculta campos sensibles como documento, usuario interno, domicilio, teléfono y correo.
+La vista pública oculta campos sensibles como documento, usuario interno, domicilio, teléfono, correo y empresa.
 
-### Vista interna preparada para futuro
+### Campos públicos definidos
 
-`consulta.php` deja preparada una vista interna si se configura la variable de entorno `EXPEDIENTES_INTERNAL_TOKEN` y se envía el header `X-Internal-Token` correcto junto con `vista=interna`.
+Expediente público:
 
-No hay login implementado en esta versión. No se recomienda exponer la vista interna sin autenticación real.
+- `NUMERO`, `LETRA`, `ANO`
+- `FECHAINICIO`, `FECHACARGA`, `updated_at`
+- `SECTORINICIA`, `SECTORINICIA_NOMBRE`
+- `EXTERNOINICIA`, `INICIADOR`, `DESTINO`
+- `SECTORDESTINO`, `EXTERNODESTINO`
+- `TIPOEXPEDIENTE`, `ESTADO`, `TEMA`, `MOTIVO`
+- `IMPRESO`, `ANULADO`, `PAGADO`, `INCOMPLETO`
+- `SECTACTUAL`, `SECTACTUAL_NOMBRE`
+
+Movimiento público:
+
+- `NUMERO`, `ANO`, `FECHAHORA`
+- `SECTORACTUAL`, `SECTORACTUAL_NOMBRE`, `SECTORPROVENIENTE`
+- `EXTERNOACTUAL`, `LUGAR`, `ESTADOACTUAL`
+- `FOJAS`, `PERMANECIO`, `OBSERVACIONES`, `RECIBIDO`, `FECHARECEPCION`
+
+Campos internos no expuestos públicamente: documento, usuario interno, domicilio, teléfono, celular, correo y empresa.
+
+### Vista interna preparada para empleados
+
+`consulta.php` permite `vista=interna` únicamente si se configura `EXPEDIENTES_INTERNAL_TOKEN` y se envía el header `X-Internal-Token` correcto.
+
+Ejemplo:
+
+```bash
+curl -H "X-Internal-Token: TOKEN" \
+  "https://SERVIDOR/expedientes/api/consulta.php?numero=1&ano=2024&vista=interna"
+```
+
+Si se pide `vista=interna` sin token válido, el endpoint responde `401`. Esto no reemplaza un login real, pero evita una falsa seguridad por parámetro público.
 
 ## Pendientes sugeridos
 
-- Mover credenciales de base de datos a variables de entorno o configuración no versionada.
-- Implementar autenticación real para empleados municipales.
-- Agregar auditoría de consultas.
-- Agregar paginación o botón “ver más” para expedientes con muchos movimientos.
-- Definir formalmente qué campos son públicos y cuáles internos.
+- Implementar login real con usuarios, roles, sesiones seguras y auditoría por usuario identificado.
+- Revisar normativamente qué datos de `MOTIVO` y `OBSERVACIONES` deben mostrarse en vista pública.
+- Migrar auditoría desde archivo plano a una tabla controlada si se requiere reporting institucional.
+- Agregar exportación PDF/Excel solo para usuarios autenticados.
