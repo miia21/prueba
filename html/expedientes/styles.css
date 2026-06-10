@@ -205,7 +205,9 @@ gap:7px
 .field span{
 font-size:13px;
 font-weight:700;
-color:var(--neutral)
+color:var(--neutral);
+line-height:1.25;
+min-height:17px
 }
 .field em{
 font-style:normal;
@@ -240,8 +242,9 @@ margin:0 0 16px
 }
 .fields-grid{
 display:grid;
-grid-template-columns:1fr 88px 118px;
-gap:12px
+grid-template-columns:minmax(0,1fr) 100px 118px;
+gap:12px;
+align-items:end
 }
 .form-actions{
 display:flex;
@@ -913,4 +916,8 @@ grid-template-columns:1fr
 .header-actions{
 justify-content:flex-start
 }
+}
+
+.internal-mode .content-shell{
+padding-top:28px
 }

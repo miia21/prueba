@@ -16,7 +16,7 @@ $name = trim((string)($data['name'] ?? $username));
 $password = (string)($data['password'] ?? '');
 
 if (!auth_validate_username($username)) {
-    auth_json(['error' => 'El usuario debe tener 3 a 40 caracteres y solo letras, números, punto, guion o guion bajo.'], 400);
+    auth_json(['error' => 'El usuario debe tener 3 a 40 caracteres y puede incluir letras, números, punto, guion o guion bajo.'], 400);
 }
 if (!auth_validate_password($password)) {
     auth_json(['error' => 'La contraseña debe tener al menos 8 caracteres.'], 400);

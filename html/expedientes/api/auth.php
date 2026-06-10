@@ -99,7 +99,7 @@ function auth_require_admin(): array {
 }
 
 function auth_validate_username(string $username): bool {
-    return (bool)preg_match('/^[a-zA-Z0-9._-]{3,40}$/', $username);
+    return (bool)preg_match('/^[\p{L}\p{N}._-]{3,40}$/u', $username);
 }
 
 function auth_validate_password(string $password): bool {

@@ -43,6 +43,7 @@
     clear: byId('clearButton'),
     message: byId('formMessage'),
     result: byId('resultPanel'),
+    hero: byId('appHero'),
     status: byId('syncStatus'),
     loginButton: byId('loginButton'),
     dashboardButton: byId('dashboardButton'),
@@ -98,6 +99,12 @@
     dom.button.disabled = isLoading;
     var label = dom.button.querySelector('span:last-child');
     if (label) label.textContent = isLoading ? 'Consultando…' : 'Consultar expediente';
+  }
+
+
+  function setInternalMode(enabled) {
+    if (dom.hero) dom.hero.classList.toggle('is-hidden', Boolean(enabled));
+    document.body.classList.toggle('internal-mode', Boolean(enabled));
   }
 
   function renderLoading(label) {
@@ -277,6 +284,7 @@
   }
 
   function clearForm() {
+    setInternalMode(false);
     dom.form.reset();
     setFormMessage('');
     state.lastParams = null;
@@ -307,6 +315,7 @@
   }
 
   function renderLogin() {
+    setInternalMode(true);
     var setup = Boolean(state.session && state.session.setup_required);
     dom.result.innerHTML = '<section class="admin-shell"><article class="admin-card">' +
       '<p class="eyebrow">' + (setup ? 'Configuración inicial' : 'Acceso interno') + '</p>' +
@@ -337,6 +346,7 @@
   }
 
   function renderDashboard() {
+    setInternalMode(true);
     if (!state.session.authenticated) {
       renderLogin();
       return;
