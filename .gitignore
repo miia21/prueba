@@ -1,0 +1,14 @@
+# Configuración local con credenciales
+html/expedientes/api/config.local.php
+
+# Logs y temporales de la app web
+html/expedientes/api/*.log
+html/expedientes/api/logs/
+*.tmp
+
+# Temporales Python
+__pycache__/
+*.py[cod]
+
+# Usuarios locales de la app web
+html/expedientes/api/data/
