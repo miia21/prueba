@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Consulta pública de expedientes municipales y recorrido por sectores.">
+  <title>Consulta de Expedientes — Municipalidad de Pocito</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <header class="site-header" aria-label="Encabezado institucional">
+    <a class="brand" href="./" aria-label="Ir al inicio de consulta de expedientes">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" role="img"><path d="M12 2.75 4.5 6.55v5.35c0 4.55 3.18 8.7 7.5 9.35 4.32-.65 7.5-4.8 7.5-9.35V6.55L12 2.75Zm0 2.12 5.6 2.84v4.19c0 3.45-2.25 6.65-5.6 7.34-3.35-.69-5.6-3.89-5.6-7.34V7.71L12 4.87Z"/></svg>
+      </span>
+      <span>
+        <strong>Municipalidad de Pocito</strong>
+        <small>San Juan · Sistema SIGAP</small>
+      </span>
+    </a>
+    <div class="sync-status" id="syncStatus" aria-live="polite">
+      <span class="pulse" aria-hidden="true"></span>
+      <span>Consultando estado del sistema…</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-bg" aria-hidden="true"></div>
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <p class="eyebrow">Servicio digital municipal</p>
+          <h1 id="pageTitle">Consulta de expedientes</h1>
+          <p class="lead">Buscá un expediente y revisá su estado actual, sector donde se encuentra y el historial de movimientos entre áreas municipales.</p>
+          <div class="hero-badges" aria-label="Características del servicio">
+            <span>Consulta pública</span>
+            <span>Historial por sectores</span>
+            <span>Datos actualizados desde SIGAP</span>
+          </div>
+        </div>
+
+        <form class="search-card" id="searchForm" novalidate>
+          <div class="search-card-head">
+            <div>
+              <p class="form-kicker">Buscar expediente</p>
+              <h2>Ingresá los datos de consulta</h2>
+            </div>
+            <span class="mode-pill">Vista pública</span>
+          </div>
+
+          <label class="field field-wide" for="smartSearch">
+            <span>Número de expediente</span>
+            <input id="smartSearch" name="smartSearch" type="text" inputmode="numeric" autocomplete="off" placeholder="Ej.: 1200, 1200/2024 o 1200-A-2024" aria-describedby="searchHelp">
+          </label>
+          <p class="field-help" id="searchHelp">Podés escribir solo el número y completar el año abajo, o pegar un formato completo.</p>
+
+          <div class="fields-grid">
+            <label class="field" for="numero">
+              <span>Número</span>
+              <input id="numero" name="numero" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="1200" required>
+            </label>
+            <label class="field" for="letra">
+              <span>Letra <em>opcional</em></span>
+              <input id="letra" name="letra" type="text" autocomplete="off" maxlength="1" placeholder="A">
+            </label>
+            <label class="field" for="ano">
+              <span>Año</span>
+              <input id="ano" name="ano" type="text" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="2024" required>
+            </label>
+          </div>
+
+          <div class="form-actions">
+            <button class="btn-primary" id="searchButton" type="submit">
+              <span class="btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M10.75 4a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.5 10.75a8.25 8.25 0 1 1 14.47 5.42l4.18 4.18-1.06 1.06-4.18-4.18A8.25 8.25 0 0 1 2.5 10.75Z"/></svg>
+              </span>
+              <span>Consultar expediente</span>
+            </button>
+            <button class="btn-secondary" id="clearButton" type="button">Limpiar</button>
+          </div>
+
+          <div class="form-message" id="formMessage" role="alert" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="content-shell" aria-live="polite">
+      <div class="result-panel" id="resultPanel">
+        <article class="empty-state">
+          <span class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M7 3.5h7.25L19 8.25V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 2-1.5Zm7 1.8V8.5h3.2L14 5.3ZM7 5v15h10.5V10H12.5V5H7Zm2 8h6v1.5H9V13Zm0 3h6v1.5H9V16Zm0-6h3v1.5H9V10Z"/></svg>
+          </span>
+          <p class="eyebrow">Inicio</p>
+          <h2>Listo para consultar</h2>
+          <p>Completá número y año para ver el estado del expediente, su área actual y el recorrido registrado por SIGAP.</p>
+          <div class="empty-tips">
+            <span>Ejemplo: número <strong>1</strong>, año <strong>2024</strong></span>
+            <span>La letra es opcional si no corresponde.</span>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© Municipalidad de Pocito · Consulta pública de expedientes</p>
+    <p>La información publicada es orientativa y se actualiza periódicamente desde el sistema interno.</p>
+  </footer>
+</body>
+</html>
