@@ -14,6 +14,8 @@ Aplicación web ubicada en `html/expedientes/` para consultar expedientes munici
 - `api/users.php`: gestión básica de usuarios para administradores.
 - `api/dashboard.php`: métricas internas para empleados autenticados.
 - `api/consulta.php`: endpoint de consulta de expedientes y movimientos.
+- `api/operaciones.php`: helpers y creación de tablas locales `expe2_*` para seguimiento interno.
+- `api/sectores.php`, `api/recepciones.php`, `api/movimientos-locales.php`, `api/bandeja.php`: endpoints internos para sectores, recepción local, derivaciones internas y bandeja.
 - `api/status.php`: endpoint de estado básico/última actualización.
 
 ## Archivos de sincronización no modificados
@@ -152,9 +154,11 @@ La vista pública oculta campos sensibles como documento, usuario interno, domic
 Requiere sesión iniciada. Devuelve:
 
 - totales de expedientes, movimientos y sectores vigentes;
+- totales de recepciones, movimientos y expedientes en seguimiento interno;
 - última actualización;
 - distribución por estado;
-- sectores con más expedientes.
+- sectores oficiales con más expedientes;
+- sectores con más seguimiento interno.
 
 ## Endpoint `api/users.php`
 
@@ -166,8 +170,30 @@ Requiere usuario `admin`.
 
 ## Pendientes sugeridos
 
-- Agregar migraciones formales/versionadas para administrar cambios futuros en `usuarios_expe2`.
+- Agregar migraciones formales/versionadas para administrar cambios futuros en `usuarios_expe2` y `expe2_*`.
 - Agregar recuperación de contraseña, 2FA y políticas de expiración.
 - Revisar normativamente qué datos de `MOTIVO` y `OBSERVACIONES` deben mostrarse en vista pública.
 - Migrar auditoría desde archivo plano a una tabla controlada si se requiere reporting institucional.
 - Agregar exportación PDF/Excel solo para usuarios autenticados.
+
+## Seguimiento interno sin modificar SIGAP
+
+Esta versión agrega un módulo interno para que oficinas externas registren recepción y movimientos propios de expedientes. El módulo **no escribe** sobre las tablas sincronizadas `expediente`, `expemovi` ni `sectmuni`; esas tablas se siguen usando como fuente oficial de lectura.
+
+Las operaciones internas se guardan en tablas separadas:
+
+- `expe2_recepciones`: recepciones locales registradas desde la app web.
+- `expe2_movimientos`: derivaciones/movimientos internos entre sectores u oficinas dentro de esta app.
+- `expe2_estado_local`: estado interno vigente del expediente en esta app.
+- `expe2_auditoria`: auditoría de acciones internas.
+
+La app intenta crear estas tablas automáticamente desde `api/operaciones.php`. Si el usuario MySQL no tiene permiso `CREATE`, importar manualmente `expe2_operaciones.sql`.
+
+Endpoints internos agregados:
+
+- `GET ./api/sectores.php`: lista sectores vigentes desde `sectmuni` para formularios internos.
+- `POST ./api/recepciones.php`: registra recepción local de un expediente oficial existente.
+- `POST ./api/movimientos-locales.php`: registra una derivación interna sin modificar el sistema oficial.
+- `GET ./api/bandeja.php`: lista expedientes y últimos movimientos con seguimiento interno.
+
+Las respuestas de `api/consulta.php` incluyen `seguimiento_local` solo cuando hay sesión interna autenticada. La vista pública conserva los datos oficiales sincronizados.

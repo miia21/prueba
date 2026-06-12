@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/operaciones.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -132,6 +132,8 @@ try {
     json_response(['error' => 'Error de base de datos. Intentá más tarde.'], 500);
 }
 
+$currentUser = auth_current_user();
+
 $sql = "SELECT
     e.NUMERO, e.LETRA, e.ANO,
     DATE_FORMAT(e.FECHAINICIO,'%Y-%m-%d %H:%i:%s') AS FECHAINICIO,
@@ -216,6 +218,43 @@ try {
     $movimientosTotal = 0;
 }
 
+$seguimientoLocal = null;
+if ($currentUser) {
+    try {
+        op_ensure_tables($pdo);
+        $estadoLocal = op_get_local_state($pdo, $numero_int, $ano_int);
+        $localCountSt = $pdo->prepare('SELECT COUNT(*) FROM `' . OP_TABLE_MOVIMIENTOS . '` WHERE numero = :numero AND ano = :ano');
+        $localCountSt->execute([':numero' => $numero_int, ':ano' => $ano_int]);
+        $localTotal = (int)$localCountSt->fetchColumn();
+        $localMovSt = $pdo->prepare("SELECT m.id, m.numero AS NUMERO, m.ano AS ANO, m.letra AS LETRA,
+            DATE_FORMAT(m.enviado_en, '%Y-%m-%d %H:%i:%s') AS FECHAHORA,
+            m.sector_destino AS SECTORACTUAL,
+            COALESCE(NULLIF(sd.DESCRIPCION,''), m.sector_destino) AS SECTORACTUAL_NOMBRE,
+            m.sector_origen AS SECTORPROVENIENTE,
+            COALESCE(NULLIF(so.DESCRIPCION,''), m.sector_origen) AS SECTORPROVENIENTE_NOMBRE,
+            m.estado AS ESTADOACTUAL,
+            m.observaciones AS OBSERVACIONES,
+            m.recibido AS RECIBIDO,
+            DATE_FORMAT(m.recibido_en, '%Y-%m-%d %H:%i:%s') AS FECHARECEPCION,
+            'web' AS ORIGEN
+            FROM `" . OP_TABLE_MOVIMIENTOS . "` m
+            LEFT JOIN sectmuni sd ON sd.CODIGO = m.sector_destino
+            LEFT JOIN sectmuni so ON so.CODIGO = m.sector_origen
+            WHERE m.numero = :numero AND m.ano = :ano
+            ORDER BY m.enviado_en DESC
+            LIMIT 50");
+        $localMovSt->execute([':numero' => $numero_int, ':ano' => $ano_int]);
+        $seguimientoLocal = [
+            'estado' => $estadoLocal,
+            'movimientos' => $localMovSt->fetchAll(),
+            'movimientos_total' => $localTotal,
+        ];
+    } catch (Throwable $e) {
+        error_log('consulta.php seguimiento local error: ' . $e->getMessage());
+        $seguimientoLocal = ['estado' => null, 'movimientos' => [], 'movimientos_total' => 0, 'error' => 'No se pudo cargar el seguimiento interno.'];
+    }
+}
+
 if (!$internal) {
     $expediente = public_expediente($expediente);
     $movimientos = array_map('public_movimiento', $movimientos);
@@ -234,7 +273,7 @@ $auditContext = [
 ];
 audit_event('consulta', $auditContext);
 
-json_response([
+$response = [
     'expediente' => $expediente,
     'movimientos' => $movimientos,
     'meta' => [
@@ -245,4 +284,8 @@ json_response([
         'returned' => count($movimientos),
         'has_more' => ($offset + count($movimientos)) < $movimientosTotal,
     ],
-]);
+];
+if ($seguimientoLocal !== null) {
+    $response['seguimiento_local'] = $seguimientoLocal;
+}
+json_response($response);

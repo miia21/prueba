@@ -9,7 +9,11 @@
     login: './api/login.php',
     logout: './api/logout.php',
     dashboard: './api/dashboard.php',
-    users: './api/users.php'
+    users: './api/users.php',
+    sectores: './api/sectores.php',
+    recepciones: './api/recepciones.php',
+    movimientosLocales: './api/movimientos-locales.php',
+    bandeja: './api/bandeja.php'
   };
 
   var INITIAL_LIMIT = 12;
@@ -29,7 +33,9 @@
     expediente: null,
     movimientos: [],
     meta: null,
-    session: { authenticated: false, user: null, setup_required: false }
+    session: { authenticated: false, user: null, setup_required: false },
+    sectores: [],
+    bandeja: null
   };
 
   function byId(id) { return document.getElementById(id); }
@@ -179,7 +185,8 @@
         state.expediente = payload.expediente;
         state.movimientos = payload.movimientos || [];
         state.meta = payload.meta || null;
-        renderExpediente(state.expediente, state.movimientos, state.meta);
+        state.seguimientoLocal = payload.seguimiento_local || null;
+        renderExpediente(state.expediente, state.movimientos, state.meta, state.seguimientoLocal);
       })
       .catch(function (error) {
         console.error(error);
@@ -200,7 +207,7 @@
     return 'N° ' + normalizeText(expediente.NUMERO) + (letra !== '—' ? '/' + letra : '') + ' · ' + normalizeText(expediente.ANO);
   }
 
-  function renderExpediente(expediente, movimientos, meta) {
+  function renderExpediente(expediente, movimientos, meta, seguimientoLocal) {
     var info = statusInfo(expediente.ESTADO);
     var sectorActual = normalizeText(expediente.SECTACTUAL_NOMBRE || expediente.SECTACTUAL);
     var sectorInicia = normalizeText(expediente.SECTORINICIA_NOMBRE || expediente.SECTORINICIA);
@@ -222,7 +229,7 @@
       '</section>' +
       (motivo !== '—' ? '<section class="topic-box" aria-label="Motivo o asunto"><span>Motivo / asunto</span><p>' + escapeHtml(motivo) + '</p></section>' : '') +
       '<section class="timeline-section" aria-labelledby="timelineTitle"><div class="section-title"><h3 id="timelineTitle">Historial de movimientos</h3><span class="count-pill">' + movementCountLabel(movimientos, meta) + '</span></div>' +
-      renderMovementsTable(movimientos) + renderLoadMore(meta) + '</section></div></article>';
+      renderMovementsTable(movimientos) + renderLoadMore(meta) + '</section>' + renderLocalTracking(seguimientoLocal) + '</div></article>';
   }
 
   function dataItem(label, value) {
@@ -261,6 +268,18 @@
       '</tr>';
   }
 
+
+  function renderLocalTracking(seguimientoLocal) {
+    if (!seguimientoLocal) return '';
+    var estado = seguimientoLocal.estado || null;
+    var movimientos = seguimientoLocal.movimientos || [];
+    var estadoHtml = estado ? '<div class="local-state-card"><span>Estado interno de esta app</span><strong>' + escapeHtml(normalizeText(estado.estado_local)) + '</strong><small>Sector interno: ' + escapeHtml(normalizeText(estado.sector_actual_nombre || estado.sector_actual)) + ' · ' + escapeHtml(formatDate(estado.actualizado_en, { withTime: true })) + '</small></div>' : '<div class="local-state-card"><span>Seguimiento interno</span><strong>Sin recepción local</strong><small>Este expediente aún no tiene movimientos internos registrados en esta app.</small></div>';
+    var rows = movimientos.map(function (mov) {
+      return '<tr><td>' + escapeHtml(formatDate(mov.FECHAHORA, { withTime: true })) + '</td><td>' + escapeHtml(normalizeText(mov.SECTORPROVENIENTE_NOMBRE || mov.SECTORPROVENIENTE)) + '</td><td><strong>' + escapeHtml(normalizeText(mov.SECTORACTUAL_NOMBRE || mov.SECTORACTUAL)) + '</strong></td><td>' + escapeHtml(normalizeText(mov.ESTADOACTUAL)) + '</td><td>' + escapeHtml(normalizeText(mov.OBSERVACIONES)) + '</td></tr>';
+    }).join('');
+    return '<section class="timeline-section local-tracking" aria-labelledby="localTrackingTitle"><div class="section-title"><h3 id="localTrackingTitle">Seguimiento interno</h3><span class="count-pill">No modifica SIGAP</span></div><p class="local-disclaimer">Estos movimientos pertenecen solo a esta aplicación web y no modifican el sistema municipal principal.</p>' + estadoHtml + (rows ? '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Fecha</th><th>Origen</th><th>Destino interno</th><th>Estado</th><th>Observaciones</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + '</section>';
+  }
+
   function loadMoreMovements() {
     if (!state.lastParams || !state.meta || !state.meta.has_more) return;
     var button = byId('loadMoreButton');
@@ -272,7 +291,7 @@
       .then(function (payload) {
         state.movimientos = state.movimientos.concat(payload.movimientos || []);
         state.meta = payload.meta || state.meta;
-        renderExpediente(state.expediente, state.movimientos, state.meta);
+        renderExpediente(state.expediente, state.movimientos, state.meta, state.seguimientoLocal);
       })
       .catch(function (error) {
         console.error(error);
@@ -291,6 +310,7 @@
     state.expediente = null;
     state.movimientos = [];
     state.meta = null;
+    state.seguimientoLocal = null;
     dom.result.innerHTML = '<article class="empty-state"><span class="empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3.5h7.25L19 8.25V20a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 2-1.5Zm7 1.8V8.5h3.2L14 5.3ZM7 5v15h10.5V10H12.5V5H7Zm2 8h6v1.5H9V13Zm0 3h6v1.5H9V16Zm0-6h3v1.5H9V10Z"/></svg></span><p class="eyebrow">Inicio</p><h2>Listo para consultar</h2><p>Completá número y año para ver el estado del expediente, su área actual y el recorrido registrado por SIGAP.</p></article>';
     dom.numero.focus();
   }
@@ -367,9 +387,11 @@
     dom.result.innerHTML = '<section class="admin-shell"><article class="admin-card">' +
       '<p class="eyebrow">Panel interno</p><h2>Dashboard municipal</h2>' +
       '<p>Resumen operativo de expedientes sincronizados. Última actualización: ' + escapeHtml(formatDate(dashboard.ultima_sync, { withTime: true })) + '</p>' +
-      '<div class="stats-grid">' + statCard('Expedientes', dashboard.totals.expedientes) + statCard('Movimientos', dashboard.totals.movimientos) + statCard('Sectores vigentes', dashboard.totals.sectores) + '</div>' +
-      '<div class="dashboard-grid">' + miniTable('Estados', dashboard.by_estado, 'ESTADO') + miniTable('Sectores con más expedientes', dashboard.by_sector, 'sector') + '</div>' +
-      '</article>' + usersHtml + '</section>';
+      '<div class="internal-warning">Las recepciones y movimientos registrados acá son internos de esta aplicación y no modifican el sistema municipal principal.</div>' +
+      '<div class="stats-grid">' + statCard('Expedientes oficiales', dashboard.totals.expedientes) + statCard('Movimientos oficiales', dashboard.totals.movimientos) + statCard('Sectores vigentes', dashboard.totals.sectores) + statCard('Recepciones internas', dashboard.totals.recepciones_locales) + statCard('Movimientos internos', dashboard.totals.movimientos_locales) + statCard('En seguimiento', dashboard.totals.expedientes_en_seguimiento) + '</div>' +
+      '<div class="dashboard-grid">' + miniTable('Estados oficiales', dashboard.by_estado, 'ESTADO') + miniTable('Sectores oficiales con más expedientes', dashboard.by_sector, 'sector') + miniTable('Seguimiento interno por sector', dashboard.by_sector_local, 'sector') + '</div>' +
+      '</article>' + renderOperationsSection() + renderBandejaSection() + usersHtml + '</section>';
+    hydrateInternalData();
   }
 
   function statCard(label, value) {
@@ -381,6 +403,60 @@
     return '<div class="mini-table"><h3>' + escapeHtml(title) + '</h3><table><tbody>' + rows.map(function (row) {
       return '<tr><td>' + escapeHtml(normalizeText(row[labelKey])) + '</td><td>' + Number(row.total || 0).toLocaleString('es-AR') + '</td></tr>';
     }).join('') + '</tbody></table></div>';
+  }
+
+  function sectorOptions() {
+    if (!state.sectores.length) return '<option value="">Cargando sectores…</option>';
+    return '<option value="">Seleccionar sector</option>' + state.sectores.map(function (sector) {
+      return '<option value="' + escapeHtml(sector.codigo) + '">' + escapeHtml(normalizeText(sector.descripcion) + ' (' + sector.codigo + ')') + '</option>';
+    }).join('');
+  }
+
+  function renderOperationsSection() {
+    return '<article class="admin-card"><p class="eyebrow">Operación interna</p><h2>Recepción y movimientos internos</h2><p>Usá estos formularios para registrar seguimiento propio de oficinas externas. No se escribe sobre las tablas oficiales sincronizadas.</p>' +
+      '<div class="operation-grid">' +
+      '<form id="receptionForm" class="operation-form"><h3>Registrar recepción</h3>' + expedienteFieldsHtml() + '<label class="field"><span>Sector que recibe</span><select name="sector_codigo" data-sector-select required>' + sectorOptions() + '</select></label><label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Detalle interno opcional"></textarea></label><button class="btn-primary" type="submit">Registrar recepción interna</button><div class="form-message" id="receptionMessage" role="alert"></div></form>' +
+      '<form id="movementForm" class="operation-form"><h3>Derivar internamente</h3>' + expedienteFieldsHtml() + '<label class="field"><span>Sector destino</span><select name="sector_destino" data-sector-select required>' + sectorOptions() + '</select></label><label class="field"><span>Estado interno</span><select name="estado"><option value="enviado">Enviado</option><option value="en_revision">En revisión</option><option value="observado">Observado</option></select></label><label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Motivo de la derivación interna"></textarea></label><button class="btn-primary" type="submit">Registrar movimiento interno</button><div class="form-message" id="movementMessage" role="alert"></div></form>' +
+      '</div></article>';
+  }
+
+  function expedienteFieldsHtml() {
+    return '<div class="operation-exp-grid"><label class="field"><span>Número</span><input name="numero" inputmode="numeric" required></label><label class="field"><span>Letra</span><input name="letra" maxlength="1"></label><label class="field"><span>Año</span><input name="ano" inputmode="numeric" maxlength="4" required></label></div>';
+  }
+
+  function renderBandejaSection() {
+    return '<article class="admin-card"><p class="eyebrow">Bandeja interna</p><h2>Expedientes en seguimiento local</h2><div id="localInbox"><p>Cargando bandeja interna…</p></div></article>';
+  }
+
+  function hydrateInternalData() {
+    fetchJson(API.sectores, { headers: { Accept: 'application/json' } }).then(function (payload) {
+      state.sectores = payload.sectores || [];
+      Array.prototype.forEach.call(document.querySelectorAll('[data-sector-select]'), function (select) { select.innerHTML = sectorOptions(); });
+    }).catch(function () { state.sectores = []; });
+    loadBandeja();
+  }
+
+  function loadBandeja() {
+    fetchJson(API.bandeja, { headers: { Accept: 'application/json' } }).then(function (payload) {
+      state.bandeja = payload;
+      var target = byId('localInbox');
+      if (target) target.innerHTML = renderBandejaTables(payload);
+    }).catch(function (error) {
+      var target = byId('localInbox');
+      if (target) target.innerHTML = '<p class="form-message is-error">' + escapeHtml(error.message) + '</p>';
+    });
+  }
+
+  function renderBandejaTables(payload) {
+    var estados = payload.estados || [];
+    var movimientos = payload.movimientos || [];
+    var estadoRows = estados.map(function (item) {
+      return '<tr><td>N° ' + escapeHtml(item.numero) + (normalizeText(item.letra) !== '—' ? '/' + escapeHtml(item.letra) : '') + ' · ' + escapeHtml(item.ano) + '</td><td>' + escapeHtml(normalizeText(item.sector_actual_nombre || item.sector_actual)) + '</td><td>' + escapeHtml(normalizeText(item.estado_local)) + '</td><td>' + escapeHtml(formatDate(item.actualizado_en, { withTime: true })) + '</td></tr>';
+    }).join('') || '<tr><td colspan="4">Todavía no hay expedientes con seguimiento interno.</td></tr>';
+    var movRows = movimientos.map(function (mov) {
+      return '<tr><td>N° ' + escapeHtml(mov.numero) + ' · ' + escapeHtml(mov.ano) + '</td><td>' + escapeHtml(normalizeText(mov.sector_origen_nombre || mov.sector_origen)) + '</td><td>' + escapeHtml(normalizeText(mov.sector_destino_nombre || mov.sector_destino)) + '</td><td>' + escapeHtml(formatDate(mov.enviado_en, { withTime: true })) + '</td><td>' + escapeHtml(normalizeText(mov.estado)) + '</td></tr>';
+    }).join('') || '<tr><td colspan="5">Sin movimientos internos registrados.</td></tr>';
+    return '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Expediente</th><th>Sector interno</th><th>Estado</th><th>Actualizado</th></tr></thead><tbody>' + estadoRows + '</tbody></table></div><h3 class="subsection-title">Últimos movimientos internos</h3><div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Expediente</th><th>Origen</th><th>Destino</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>' + movRows + '</tbody></table></div>';
   }
 
   function renderUsersSection() {
@@ -399,6 +475,18 @@
         '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Último ingreso</th><th>Acción</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
         '<div class="form-message" id="userMessage" role="alert"></div></article>';
     });
+  }
+
+  function submitReception(form) {
+    var message = byId('receptionMessage');
+    showInlineInfo(message, 'Registrando recepción…');
+    apiPost(API.recepciones, formToObject(form)).then(function () { form.reset(); return renderDashboard(); }).catch(function (error) { showInlineError(message, error.message); });
+  }
+
+  function submitLocalMovement(form) {
+    var message = byId('movementMessage');
+    showInlineInfo(message, 'Registrando movimiento…');
+    apiPost(API.movimientosLocales, formToObject(form)).then(function () { form.reset(); return renderDashboard(); }).catch(function (error) { showInlineError(message, error.message); });
   }
 
   function createUser(form) {
@@ -448,6 +536,12 @@
     element.classList.add('is-error');
   }
 
+  function showInlineInfo(element, message) {
+    if (!element) return;
+    element.textContent = message;
+    element.classList.remove('is-error');
+  }
+
   function bindEvents() {
     dom.form.addEventListener('submit', consultarExpediente);
     dom.clear.addEventListener('click', clearForm);
@@ -460,6 +554,8 @@
     dom.result.addEventListener('submit', function (event) {
       if (event.target && event.target.id === 'authForm') { event.preventDefault(); submitAuth(event.target); }
       if (event.target && event.target.id === 'userCreateForm') { event.preventDefault(); createUser(event.target); }
+      if (event.target && event.target.id === 'receptionForm') { event.preventDefault(); submitReception(event.target); }
+      if (event.target && event.target.id === 'movementForm') { event.preventDefault(); submitLocalMovement(event.target); }
     });
     dom.result.addEventListener('click', function (event) {
       if (event.target && event.target.id === 'loadMoreButton') loadMoreMovements();
