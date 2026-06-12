@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/operaciones.php';
 
-$user = auth_require_user();
+$user = auth_require_manager();
 
 try {
     $pdo = op_db();

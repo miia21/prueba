@@ -27,6 +27,7 @@ try {
     if ($origenCodigo === $destino['CODIGO']) {
         auth_json(['error' => 'El sector destino debe ser diferente al sector interno actual.'], 400);
     }
+    op_require_user_can_manage_sector($user, $origenCodigo);
 
     $pdo->beginTransaction();
     $now = auth_now();

@@ -15,6 +15,12 @@ try {
     $pdo = op_db();
     $oficial = op_require_official_expediente($pdo, $exp['numero'], $exp['ano'], $exp['letra']);
     $sector = op_require_sector($pdo, $sectorCodigo);
+    $local = op_get_local_state($pdo, $exp['numero'], $exp['ano']);
+    $currentSector = strtoupper((string)(($local['sector_actual'] ?? '') ?: ($oficial['SECTACTUAL'] ?? '')));
+    op_require_user_can_manage_sector($user, $sector['CODIGO']);
+    if (!auth_is_manager($user) && $currentSector !== '' && $currentSector !== $sector['CODIGO']) {
+        auth_json(['error' => 'Solo podés recibir expedientes que estén asignados a tu sector.'], 403);
+    }
     $pdo->beginTransaction();
     $now = auth_now();
 

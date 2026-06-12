@@ -12,7 +12,7 @@ Aplicación web ubicada en `html/expedientes/` para consultar expedientes munici
 - `api/auth.php`: helpers de sesión y almacenamiento de usuarios en la tabla MySQL `usuarios_expe2`.
 - `api/me.php`, `api/setup.php`, `api/login.php`, `api/logout.php`: endpoints de autenticación.
 - `api/users.php`: gestión básica de usuarios para administradores.
-- `api/dashboard.php`: métricas internas para empleados autenticados.
+- `api/dashboard.php`: métricas internas para administradores y supervisores.
 - `api/consulta.php`: endpoint de consulta de expedientes y movimientos.
 - `api/operaciones.php`: helpers y creación de tablas locales `expe2_*` para seguimiento interno.
 - `api/sectores.php`, `api/recepciones.php`, `api/movimientos-locales.php`, `api/bandeja.php`: endpoints internos para sectores, recepción local, derivaciones internas y bandeja.
@@ -63,10 +63,11 @@ La app intenta crear esa tabla automáticamente desde `api/auth.php` con `CREATE
 
 Roles disponibles:
 
-- `admin`: ve dashboard y gestiona usuarios.
-- `empleado`: ve dashboard interno.
+- `admin`: ve dashboard, gestiona usuarios y puede operar cualquier sector.
+- `supervisor`: ve dashboard y puede operar cualquier sector, sin gestionar usuarios.
+- `empleado`: no ve dashboard general; consulta expedientes y solo puede recibir/derivar expedientes correspondientes a su sector asignado.
 
-Esta gestión es suficiente para una primera versión interna, pero no reemplaza una solución institucional completa con recuperación de contraseña, 2FA o integración con directorio municipal.
+Los empleados deben tener `sector_codigo` asignado. Esta gestión es suficiente para una primera versión interna, pero no reemplaza una solución institucional completa con recuperación de contraseña, 2FA o integración con directorio municipal.
 
 ## Auditoría de consultas
 
@@ -132,6 +133,8 @@ La letra es opcional en la interfaz porque la estructura actual usa `NUMERO` y `
 
 ### Respuesta pública
 
+La vista pública solo permite ver expedientes externos. Los expedientes internos se responden como no encontrados para usuarios sin sesión. Al iniciar sesión, usuarios internos pueden consultar expedientes externos e internos según sus permisos.
+
 ```json
 {
   "expediente": {},
@@ -154,6 +157,7 @@ La vista pública oculta campos sensibles como documento, usuario interno, domic
 Requiere sesión iniciada. Devuelve:
 
 - totales de expedientes, movimientos y sectores vigentes;
+- solo disponible para usuarios `admin` o `supervisor`;
 - totales de recepciones, movimientos y expedientes en seguimiento interno;
 - última actualización;
 - distribución por estado;
@@ -192,8 +196,10 @@ La app intenta crear estas tablas automáticamente desde `api/operaciones.php`. 
 Endpoints internos agregados:
 
 - `GET ./api/sectores.php`: lista sectores vigentes desde `sectmuni` para formularios internos.
-- `POST ./api/recepciones.php`: registra recepción local de un expediente oficial existente.
-- `POST ./api/movimientos-locales.php`: registra una derivación interna sin modificar el sistema oficial.
+- `POST ./api/recepciones.php`: registra recepción local de un expediente oficial existente; empleados solo pueden recibir en su sector.
+- `POST ./api/movimientos-locales.php`: registra una derivación interna sin modificar el sistema oficial; empleados solo pueden mover expedientes cuyo sector interno/oficial actual coincide con su sector asignado.
 - `GET ./api/bandeja.php`: lista expedientes y últimos movimientos con seguimiento interno.
 
-Las respuestas de `api/consulta.php` incluyen `seguimiento_local` solo cuando hay sesión interna autenticada. La vista pública conserva los datos oficiales sincronizados.
+Las respuestas de `api/consulta.php` incluyen `seguimiento_local` solo cuando hay sesión interna autenticada. La vista pública conserva los datos oficiales sincronizados y oculta expedientes internos.
+
+La gestión de recepción y derivación se realiza desde la ficha del expediente: primero se busca el expediente y, si el usuario tiene permiso sobre el sector correspondiente, aparecen las acciones internas disponibles.

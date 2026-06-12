@@ -69,6 +69,14 @@ function public_movimiento(array $movimiento): array {
     return array_intersect_key($movimiento, array_flip($allowed));
 }
 
+
+function is_public_expediente_visible(array $expediente): bool {
+    $iniciador = strtoupper(trim((string)($expediente['INICIADOR'] ?? '')));
+    $destino = strtoupper(trim((string)($expediente['DESTINO'] ?? '')));
+    $externoInicia = trim((string)($expediente['EXTERNOINICIA'] ?? ''));
+    return $iniciador === 'EXTERNO' || $destino === 'EXTERNO' || $externoInicia !== '';
+}
+
 // Rate limit simple por IP. Mantiene compatibilidad con hosting básico sin servicios extra.
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'x';
 $key = sys_get_temp_dir() . '/rl_sigap_' . md5($ip);
@@ -171,6 +179,11 @@ try {
     json_response(['error' => 'Error al consultar el expediente.'], 500);
 }
 
+if ($expediente && !$currentUser && !$internal && !is_public_expediente_visible($expediente)) {
+    audit_event('consulta_restringida', ['numero' => $numero_int, 'ano' => $ano_int, 'reason' => 'expediente_interno']);
+    $expediente = false;
+}
+
 if (!$expediente) {
     audit_event('consulta', ['numero' => $numero_int, 'ano' => $ano_int, 'found' => false]);
     json_response([
@@ -255,7 +268,7 @@ if ($currentUser) {
     }
 }
 
-if (!$internal) {
+if (!$internal && !$currentUser) {
     $expediente = public_expediente($expediente);
     $movimientos = array_map('public_movimiento', $movimientos);
 }

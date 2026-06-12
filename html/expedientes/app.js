@@ -94,6 +94,21 @@
     return ESTADOS[key] || { label: key || 'Sin estado', className: 'status-neutral' };
   }
 
+
+  function userIsManager() {
+    var role = state.session && state.session.user ? state.session.user.role : '';
+    return role === 'admin' || role === 'supervisor';
+  }
+
+  function userSector() {
+    return state.session && state.session.user ? String(state.session.user.sector_codigo || '').toUpperCase() : '';
+  }
+
+  function canManageSector(sector) {
+    sector = String(sector || '').toUpperCase();
+    return userIsManager() || (sector && userSector() === sector);
+  }
+
   function setFormMessage(message) {
     if (!dom.message) return;
     dom.message.textContent = message || '';
@@ -229,7 +244,8 @@
       '</section>' +
       (motivo !== '—' ? '<section class="topic-box" aria-label="Motivo o asunto"><span>Motivo / asunto</span><p>' + escapeHtml(motivo) + '</p></section>' : '') +
       '<section class="timeline-section" aria-labelledby="timelineTitle"><div class="section-title"><h3 id="timelineTitle">Historial de movimientos</h3><span class="count-pill">' + movementCountLabel(movimientos, meta) + '</span></div>' +
-      renderMovementsTable(movimientos) + renderLoadMore(meta) + '</section>' + renderLocalTracking(seguimientoLocal) + '</div></article>';
+      renderMovementsTable(movimientos) + renderLoadMore(meta) + '</section>' + renderLocalTracking(seguimientoLocal) + renderExpedienteActions(expediente, seguimientoLocal) + '</div></article>';
+    if (state.session && state.session.authenticated) loadSectorsOnly();
   }
 
   function dataItem(label, value) {
@@ -278,6 +294,27 @@
       return '<tr><td>' + escapeHtml(formatDate(mov.FECHAHORA, { withTime: true })) + '</td><td>' + escapeHtml(normalizeText(mov.SECTORPROVENIENTE_NOMBRE || mov.SECTORPROVENIENTE)) + '</td><td><strong>' + escapeHtml(normalizeText(mov.SECTORACTUAL_NOMBRE || mov.SECTORACTUAL)) + '</strong></td><td>' + escapeHtml(normalizeText(mov.ESTADOACTUAL)) + '</td><td>' + escapeHtml(normalizeText(mov.OBSERVACIONES)) + '</td></tr>';
     }).join('');
     return '<section class="timeline-section local-tracking" aria-labelledby="localTrackingTitle"><div class="section-title"><h3 id="localTrackingTitle">Seguimiento interno</h3><span class="count-pill">No modifica SIGAP</span></div><p class="local-disclaimer">Estos movimientos pertenecen solo a esta aplicación web y no modifican el sistema municipal principal.</p>' + estadoHtml + (rows ? '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Fecha</th><th>Origen</th><th>Destino interno</th><th>Estado</th><th>Observaciones</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') + '</section>';
+  }
+
+
+  function renderExpedienteActions(expediente, seguimientoLocal) {
+    if (!state.session || !state.session.authenticated) return '';
+    var localState = seguimientoLocal && seguimientoLocal.estado ? seguimientoLocal.estado : null;
+    var currentSector = String((localState && localState.sector_actual) || expediente.SECTACTUAL || '').toUpperCase();
+    var currentSectorName = normalizeText((localState && localState.sector_actual_nombre) || expediente.SECTACTUAL_NOMBRE || expediente.SECTACTUAL);
+    if (!canManageSector(currentSector)) {
+      return '<section class="exp-actions"><div class="internal-warning">Tu usuario pertenece al sector ' + escapeHtml(userSector() || 'sin asignar') + '. Este expediente está en ' + escapeHtml(currentSectorName) + ', por eso solo podés consultarlo.</div></section>';
+    }
+    var hidden = expedienteHiddenFields(expediente);
+    var receiveSectorField = userIsManager() ? '<label class="field"><span>Sector que recibe</span><select name="sector_codigo" data-sector-select required>' + sectorOptions() + '</select></label>' : '<input type="hidden" name="sector_codigo" value="' + escapeHtml(userSector()) + '"><div class="data-item"><span>Sector que recibe</span><strong>' + escapeHtml(userSector()) + '</strong></div>';
+    return '<section class="exp-actions"><div class="section-title"><h3>Gestionar este expediente</h3><span class="count-pill">Seguimiento interno</span></div><p class="local-disclaimer">Estas acciones se guardan solo en esta aplicación y no modifican el sistema principal.</p><div class="operation-grid">' +
+      '<form id="receptionForm" class="operation-form"><h3>Registrar recepción</h3>' + hidden + receiveSectorField + '<label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Detalle interno opcional"></textarea></label><button class="btn-primary" type="submit">Registrar recepción interna</button><div class="form-message" id="receptionMessage" role="alert"></div></form>' +
+      '<form id="movementForm" class="operation-form"><h3>Derivar internamente</h3>' + hidden + '<div class="data-item"><span>Sector origen</span><strong>' + escapeHtml(currentSectorName) + '</strong></div><label class="field"><span>Sector destino</span><select name="sector_destino" data-sector-select required>' + sectorOptions() + '</select></label><label class="field"><span>Estado interno</span><select name="estado"><option value="enviado">Enviado</option><option value="en_revision">En revisión</option><option value="observado">Observado</option></select></label><label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Motivo de la derivación interna"></textarea></label><button class="btn-primary" type="submit">Registrar movimiento interno</button><div class="form-message" id="movementMessage" role="alert"></div></form>' +
+      '</div></section>';
+  }
+
+  function expedienteHiddenFields(expediente) {
+    return '<input type="hidden" name="numero" value="' + escapeHtml(expediente.NUMERO) + '"><input type="hidden" name="letra" value="' + escapeHtml(expediente.LETRA || '') + '"><input type="hidden" name="ano" value="' + escapeHtml(expediente.ANO) + '">';
   }
 
   function loadMoreMovements() {
@@ -329,7 +366,7 @@
   function updateHeaderAuth() {
     var logged = Boolean(state.session && state.session.authenticated);
     dom.loginButton.classList.toggle('is-hidden', logged);
-    dom.dashboardButton.classList.toggle('is-hidden', !logged);
+    dom.dashboardButton.classList.toggle('is-hidden', !logged || !userIsManager());
     dom.logoutButton.classList.toggle('is-hidden', !logged);
     if (logged && state.session.user) dom.dashboardButton.textContent = 'Dashboard · ' + (state.session.user.name || state.session.user.username);
   }
@@ -355,7 +392,7 @@
     var message = byId('authMessage');
     apiPost(state.session.setup_required ? API.setup : API.login, data)
       .then(function () { return loadSession(); })
-      .then(renderDashboard)
+      .then(function () { if (userIsManager()) return renderDashboard(); clearForm(); return null; })
       .catch(function (error) { showInlineError(message, error.message); });
   }
 
@@ -371,6 +408,10 @@
       renderLogin();
       return;
     }
+    if (!userIsManager()) {
+      renderNotice('error', 'Dashboard restringido', 'El panel general solo está disponible para administradores o supervisores. Podés consultar un expediente para gestionarlo desde su ficha.');
+      return;
+    }
     renderLoading('Cargando dashboard…');
     fetchJson(API.dashboard, { headers: { Accept: 'application/json' } })
       .then(function (dashboard) {
@@ -384,13 +425,13 @@
   }
 
   function renderDashboardHtml(dashboard, usersHtml) {
-    dom.result.innerHTML = '<section class="admin-shell"><article class="admin-card">' +
+    dom.result.innerHTML = '<section class="admin-shell admin-layout"><aside class="admin-sidebar"><p class="eyebrow">Menú</p><a href="#dashboardPanel">Dashboard</a><a href="#inboxPanel">Bandeja interna</a>' + (state.session.user && state.session.user.role === 'admin' ? '<a href="#usersPanel">Usuarios</a>' : '') + '</aside><main class="admin-main"><article class="admin-card" id="dashboardPanel">' +
       '<p class="eyebrow">Panel interno</p><h2>Dashboard municipal</h2>' +
       '<p>Resumen operativo de expedientes sincronizados. Última actualización: ' + escapeHtml(formatDate(dashboard.ultima_sync, { withTime: true })) + '</p>' +
       '<div class="internal-warning">Las recepciones y movimientos registrados acá son internos de esta aplicación y no modifican el sistema municipal principal.</div>' +
       '<div class="stats-grid">' + statCard('Expedientes oficiales', dashboard.totals.expedientes) + statCard('Movimientos oficiales', dashboard.totals.movimientos) + statCard('Sectores vigentes', dashboard.totals.sectores) + statCard('Recepciones internas', dashboard.totals.recepciones_locales) + statCard('Movimientos internos', dashboard.totals.movimientos_locales) + statCard('En seguimiento', dashboard.totals.expedientes_en_seguimiento) + '</div>' +
       '<div class="dashboard-grid">' + miniTable('Estados oficiales', dashboard.by_estado, 'ESTADO') + miniTable('Sectores oficiales con más expedientes', dashboard.by_sector, 'sector') + miniTable('Seguimiento interno por sector', dashboard.by_sector_local, 'sector') + '</div>' +
-      '</article>' + renderOperationsSection() + renderBandejaSection() + usersHtml + '</section>';
+      '</article>' + renderBandejaSection() + usersHtml + '</main></section>';
     hydrateInternalData();
   }
 
@@ -412,27 +453,19 @@
     }).join('');
   }
 
-  function renderOperationsSection() {
-    return '<article class="admin-card"><p class="eyebrow">Operación interna</p><h2>Recepción y movimientos internos</h2><p>Usá estos formularios para registrar seguimiento propio de oficinas externas. No se escribe sobre las tablas oficiales sincronizadas.</p>' +
-      '<div class="operation-grid">' +
-      '<form id="receptionForm" class="operation-form"><h3>Registrar recepción</h3>' + expedienteFieldsHtml() + '<label class="field"><span>Sector que recibe</span><select name="sector_codigo" data-sector-select required>' + sectorOptions() + '</select></label><label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Detalle interno opcional"></textarea></label><button class="btn-primary" type="submit">Registrar recepción interna</button><div class="form-message" id="receptionMessage" role="alert"></div></form>' +
-      '<form id="movementForm" class="operation-form"><h3>Derivar internamente</h3>' + expedienteFieldsHtml() + '<label class="field"><span>Sector destino</span><select name="sector_destino" data-sector-select required>' + sectorOptions() + '</select></label><label class="field"><span>Estado interno</span><select name="estado"><option value="enviado">Enviado</option><option value="en_revision">En revisión</option><option value="observado">Observado</option></select></label><label class="field field-wide"><span>Observaciones</span><textarea name="observaciones" rows="3" placeholder="Motivo de la derivación interna"></textarea></label><button class="btn-primary" type="submit">Registrar movimiento interno</button><div class="form-message" id="movementMessage" role="alert"></div></form>' +
-      '</div></article>';
-  }
-
-  function expedienteFieldsHtml() {
-    return '<div class="operation-exp-grid"><label class="field"><span>Número</span><input name="numero" inputmode="numeric" required></label><label class="field"><span>Letra</span><input name="letra" maxlength="1"></label><label class="field"><span>Año</span><input name="ano" inputmode="numeric" maxlength="4" required></label></div>';
-  }
-
   function renderBandejaSection() {
-    return '<article class="admin-card"><p class="eyebrow">Bandeja interna</p><h2>Expedientes en seguimiento local</h2><div id="localInbox"><p>Cargando bandeja interna…</p></div></article>';
+    return '<article class="admin-card" id="inboxPanel"><p class="eyebrow">Bandeja interna</p><h2>Expedientes en seguimiento local</h2><div id="localInbox"><p>Cargando bandeja interna…</p></div></article>';
   }
 
-  function hydrateInternalData() {
-    fetchJson(API.sectores, { headers: { Accept: 'application/json' } }).then(function (payload) {
+  function loadSectorsOnly() {
+    return fetchJson(API.sectores, { headers: { Accept: 'application/json' } }).then(function (payload) {
       state.sectores = payload.sectores || [];
       Array.prototype.forEach.call(document.querySelectorAll('[data-sector-select]'), function (select) { select.innerHTML = sectorOptions(); });
     }).catch(function () { state.sectores = []; });
+  }
+
+  function hydrateInternalData() {
+    loadSectorsOnly();
     loadBandeja();
   }
 
@@ -463,30 +496,44 @@
     return fetchJson(API.users, { headers: { Accept: 'application/json' } }).then(function (payload) {
       var users = payload.users || [];
       var rows = users.map(function (user) {
-        return '<tr><td>' + escapeHtml(user.username) + '</td><td>' + escapeHtml(user.name) + '</td><td>' + escapeHtml(user.role) + '</td><td>' + (user.active ? 'Activo' : 'Inactivo') + '</td><td>' + escapeHtml(formatDate(user.last_login_at, { withTime: true })) + '</td><td><button class="table-action" data-user-toggle="' + escapeHtml(user.id) + '" data-active="' + (user.active ? '0' : '1') + '">' + (user.active ? 'Desactivar' : 'Activar') + '</button></td></tr>';
+        return '<tr><td>' + escapeHtml(user.username) + '</td><td>' + escapeHtml(user.name) + '</td><td>' + escapeHtml(user.role) + '</td><td>' + escapeHtml(normalizeText(user.sector_codigo)) + '</td><td>' + (user.active ? 'Activo' : 'Inactivo') + '</td><td>' + escapeHtml(formatDate(user.last_login_at, { withTime: true })) + '</td><td><button class="table-action" data-user-toggle="' + escapeHtml(user.id) + '" data-active="' + (user.active ? '0' : '1') + '">' + (user.active ? 'Desactivar' : 'Activar') + '</button></td></tr>';
       }).join('');
-      return '<article class="admin-card"><p class="eyebrow">Administración</p><h2>Gestión de usuarios</h2>' +
+      return '<article class="admin-card" id="usersPanel"><p class="eyebrow">Administración</p><h2>Gestión de usuarios</h2>' +
         '<form id="userCreateForm" class="user-create-grid">' +
         '<label class="field"><span>Nombre</span><input name="name" type="text" required></label>' +
         '<label class="field"><span>Usuario</span><input name="username" type="text" required></label>' +
-        '<label class="field"><span>Rol</span><select name="role"><option value="empleado">Empleado</option><option value="admin">Administrador</option></select></label>' +
+        '<label class="field"><span>Rol</span><select name="role"><option value="empleado">Empleado</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select></label>' +
+        '<label class="field"><span>Sector</span><select name="sector_codigo" data-sector-select>' + sectorOptions() + '</select></label>' +
         '<label class="field"><span>Contraseña</span><input name="password" type="password" required></label>' +
         '<button class="btn-primary" type="submit">Crear usuario</button></form>' +
-        '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th>Último ingreso</th><th>Acción</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<div class="mov-table-wrap"><table class="mov-table"><thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Sector</th><th>Estado</th><th>Último ingreso</th><th>Acción</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
         '<div class="form-message" id="userMessage" role="alert"></div></article>';
     });
+  }
+
+  function refreshCurrentExpediente() {
+    if (!state.lastParams) return renderDashboard();
+    renderLoading('Actualizando expediente…');
+    return fetchJson(API.consulta + '?' + buildQuery(state.lastParams, 0).toString(), { headers: { Accept: 'application/json' } })
+      .then(function (payload) {
+        state.expediente = payload.expediente;
+        state.movimientos = payload.movimientos || [];
+        state.meta = payload.meta || null;
+        state.seguimientoLocal = payload.seguimiento_local || null;
+        renderExpediente(state.expediente, state.movimientos, state.meta, state.seguimientoLocal);
+      });
   }
 
   function submitReception(form) {
     var message = byId('receptionMessage');
     showInlineInfo(message, 'Registrando recepción…');
-    apiPost(API.recepciones, formToObject(form)).then(function () { form.reset(); return renderDashboard(); }).catch(function (error) { showInlineError(message, error.message); });
+    apiPost(API.recepciones, formToObject(form)).then(function () { form.reset(); return refreshCurrentExpediente(); }).catch(function (error) { showInlineError(message, error.message); });
   }
 
   function submitLocalMovement(form) {
     var message = byId('movementMessage');
     showInlineInfo(message, 'Registrando movimiento…');
-    apiPost(API.movimientosLocales, formToObject(form)).then(function () { form.reset(); return renderDashboard(); }).catch(function (error) { showInlineError(message, error.message); });
+    apiPost(API.movimientosLocales, formToObject(form)).then(function () { form.reset(); return refreshCurrentExpediente(); }).catch(function (error) { showInlineError(message, error.message); });
   }
 
   function createUser(form) {

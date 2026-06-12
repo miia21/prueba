@@ -154,7 +154,7 @@ function op_require_sector(PDO $pdo, string $sector): array {
 }
 
 function op_find_official_expediente(PDO $pdo, int $numero, int $ano, string $letra = ''): ?array {
-    $sql = 'SELECT NUMERO, LETRA, ANO, ESTADO, SECTACTUAL, SECTACTUAL_NOMBRE, MOTIVO, ANULADO FROM expediente WHERE NUMERO = :numero AND ANO = :ano';
+    $sql = 'SELECT NUMERO, LETRA, ANO, ESTADO, SECTACTUAL, SECTACTUAL_NOMBRE, MOTIVO, INICIADOR, EXTERNOINICIA, DESTINO, ANULADO FROM expediente WHERE NUMERO = :numero AND ANO = :ano';
     $params = [':numero' => $numero, ':ano' => $ano];
     if ($letra !== '') {
         $sql .= ' AND LETRA = :letra';
@@ -176,6 +176,24 @@ function op_require_official_expediente(PDO $pdo, int $numero, int $ano, string 
         auth_json(['error' => 'No se puede operar un expediente anulado.'], 409);
     }
     return $expediente;
+}
+
+function op_user_sector(array $user): string {
+    return strtoupper(trim((string)($user['sector_codigo'] ?? '')));
+}
+
+function op_user_can_manage_sector(array $user, string $sector): bool {
+    if (auth_is_manager($user)) {
+        return true;
+    }
+    $userSector = op_user_sector($user);
+    return $userSector !== '' && $userSector === strtoupper($sector);
+}
+
+function op_require_user_can_manage_sector(array $user, string $sector): void {
+    if (!op_user_can_manage_sector($user, $sector)) {
+        auth_json(['error' => 'Tu usuario solo puede operar expedientes correspondientes a su sector.'], 403);
+    }
 }
 
 function op_get_local_state(PDO $pdo, int $numero, int $ano): ?array {
