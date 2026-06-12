@@ -1090,3 +1090,40 @@ width:100%
     position:static;
   }
 }
+
+.internal-mode .admin-shell.admin-layout{
+  max-width:1240px;
+  align-items:start;
+}
+.admin-section{
+  display:none;
+}
+.admin-section.is-active{
+  display:block;
+}
+.admin-sidebar .admin-nav{
+  width:100%;
+  text-align:left;
+  color:var(--ink);
+  font:inherit;
+  font-weight:800;
+  padding:12px 14px;
+  border-radius:16px;
+  background:#f8fafc;
+  border:1px solid transparent;
+  cursor:pointer;
+}
+.admin-sidebar .admin-nav:hover,
+.admin-sidebar .admin-nav:focus,
+.admin-sidebar .admin-nav.is-active{
+  color:var(--primary-strong);
+  border-color:rgba(14,116,144,.18);
+  background:#ecfeff;
+  outline:none;
+}
+.admin-sidebar .admin-nav.is-active{
+  box-shadow:inset 4px 0 0 var(--primary);
+}
+.admin-section .user-create-grid{
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+}

@@ -425,13 +425,19 @@
   }
 
   function renderDashboardHtml(dashboard, usersHtml) {
-    dom.result.innerHTML = '<section class="admin-shell admin-layout"><aside class="admin-sidebar"><p class="eyebrow">Menú</p><a href="#dashboardPanel">Dashboard</a><a href="#inboxPanel">Bandeja interna</a>' + (state.session.user && state.session.user.role === 'admin' ? '<a href="#usersPanel">Usuarios</a>' : '') + '</aside><main class="admin-main"><article class="admin-card" id="dashboardPanel">' +
+    var isAdmin = state.session.user && state.session.user.role === 'admin';
+    dom.result.innerHTML = '<section class="admin-shell admin-layout"><aside class="admin-sidebar"><p class="eyebrow">Menú</p>' +
+      '<button type="button" class="admin-nav is-active" data-admin-section="dashboardPanel">Dashboard</button>' +
+      '<button type="button" class="admin-nav" data-admin-section="inboxPanel">Bandeja interna</button>' +
+      (isAdmin ? '<button type="button" class="admin-nav" data-admin-section="usersPanel">Gestión de usuarios</button>' : '') +
+      '<button type="button" class="admin-nav" data-admin-section="accountPanel">Mi cuenta</button>' +
+      '</aside><main class="admin-main"><article class="admin-card admin-section is-active" id="dashboardPanel">' +
       '<p class="eyebrow">Panel interno</p><h2>Dashboard municipal</h2>' +
       '<p>Resumen operativo de expedientes sincronizados. Última actualización: ' + escapeHtml(formatDate(dashboard.ultima_sync, { withTime: true })) + '</p>' +
       '<div class="internal-warning">Las recepciones y movimientos registrados acá son internos de esta aplicación y no modifican el sistema municipal principal.</div>' +
       '<div class="stats-grid">' + statCard('Expedientes oficiales', dashboard.totals.expedientes) + statCard('Movimientos oficiales', dashboard.totals.movimientos) + statCard('Sectores vigentes', dashboard.totals.sectores) + statCard('Recepciones internas', dashboard.totals.recepciones_locales) + statCard('Movimientos internos', dashboard.totals.movimientos_locales) + statCard('En seguimiento', dashboard.totals.expedientes_en_seguimiento) + '</div>' +
       '<div class="dashboard-grid">' + miniTable('Estados oficiales', dashboard.by_estado, 'ESTADO') + miniTable('Sectores oficiales con más expedientes', dashboard.by_sector, 'sector') + miniTable('Seguimiento interno por sector', dashboard.by_sector_local, 'sector') + '</div>' +
-      '</article>' + renderBandejaSection() + usersHtml + '</main></section>';
+      '</article>' + renderBandejaSection() + usersHtml + renderAccountSection() + '</main></section>';
     hydrateInternalData();
   }
 
@@ -454,7 +460,12 @@
   }
 
   function renderBandejaSection() {
-    return '<article class="admin-card" id="inboxPanel"><p class="eyebrow">Bandeja interna</p><h2>Expedientes en seguimiento local</h2><div id="localInbox"><p>Cargando bandeja interna…</p></div></article>';
+    return '<article class="admin-card admin-section" id="inboxPanel"><p class="eyebrow">Bandeja interna</p><h2>Expedientes en seguimiento local</h2><div id="localInbox"><p>Cargando bandeja interna…</p></div></article>';
+  }
+
+  function renderAccountSection() {
+    var user = state.session.user || {};
+    return '<article class="admin-card admin-section" id="accountPanel"><p class="eyebrow">Mi cuenta</p><h2>' + escapeHtml(user.name || user.username || 'Usuario') + '</h2><section class="data-grid"><div class="data-item"><span>Usuario</span><strong>' + escapeHtml(normalizeText(user.username)) + '</strong></div><div class="data-item"><span>Rol</span><strong>' + escapeHtml(normalizeText(user.role)) + '</strong></div><div class="data-item"><span>Sector asignado</span><strong>' + escapeHtml(normalizeText(user.sector_codigo)) + '</strong></div><div class="data-item"><span>Último ingreso</span><strong>' + escapeHtml(formatDate(user.last_login_at, { withTime: true })) + '</strong></div></section><p class="local-disclaimer">Para cambiar datos de cuenta, rol o sector, solicitá la modificación a un administrador.</p></article>';
   }
 
   function loadSectorsOnly() {
@@ -498,7 +509,7 @@
       var rows = users.map(function (user) {
         return '<tr><td>' + escapeHtml(user.username) + '</td><td>' + escapeHtml(user.name) + '</td><td>' + escapeHtml(user.role) + '</td><td>' + escapeHtml(normalizeText(user.sector_codigo)) + '</td><td>' + (user.active ? 'Activo' : 'Inactivo') + '</td><td>' + escapeHtml(formatDate(user.last_login_at, { withTime: true })) + '</td><td><button class="table-action" data-user-toggle="' + escapeHtml(user.id) + '" data-active="' + (user.active ? '0' : '1') + '">' + (user.active ? 'Desactivar' : 'Activar') + '</button></td></tr>';
       }).join('');
-      return '<article class="admin-card" id="usersPanel"><p class="eyebrow">Administración</p><h2>Gestión de usuarios</h2>' +
+      return '<article class="admin-card admin-section" id="usersPanel"><p class="eyebrow">Administración</p><h2>Gestión de usuarios</h2>' +
         '<form id="userCreateForm" class="user-create-grid">' +
         '<label class="field"><span>Nombre</span><input name="name" type="text" required></label>' +
         '<label class="field"><span>Usuario</span><input name="username" type="text" required></label>' +
@@ -545,6 +556,15 @@
     fetchJson(API.users, { method: 'PATCH', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ id: button.getAttribute('data-user-toggle'), active: button.getAttribute('data-active') === '1' }) })
       .then(renderDashboard)
       .catch(function (error) { renderNotice('error', 'No se pudo actualizar el usuario', error.message); });
+  }
+
+  function setAdminSection(sectionId) {
+    Array.prototype.forEach.call(document.querySelectorAll('.admin-section'), function (section) {
+      section.classList.toggle('is-active', section.id === sectionId);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-admin-section]'), function (button) {
+      button.classList.toggle('is-active', button.getAttribute('data-admin-section') === sectionId);
+    });
   }
 
   function loadStatus() {
@@ -607,6 +627,7 @@
     dom.result.addEventListener('click', function (event) {
       if (event.target && event.target.id === 'loadMoreButton') loadMoreMovements();
       if (event.target && event.target.getAttribute('data-user-toggle')) toggleUser(event.target);
+      if (event.target && event.target.getAttribute('data-admin-section')) setAdminSection(event.target.getAttribute('data-admin-section'));
     });
   }
 

@@ -5,7 +5,7 @@ Aplicación web ubicada en `html/expedientes/` para consultar expedientes munici
 ## Archivos de la app web
 
 - `index.html`: entrada principal de la interfaz.
-- `styles.css`: estilos visuales, diseño responsive, tablas, dashboard y formularios internos.
+- `styles.css`: estilos visuales, diseño responsive, tablas, dashboard con menú lateral y formularios internos.
 - `app.js`: validaciones, consumo de API, paginación de movimientos, login, dashboard y usuarios.
 - `api/config.php`: configuración compartida por variables de entorno o `config.local.php` no versionado.
 - `api/config.local.example.php`: plantilla segura para configurar el servidor.
@@ -202,4 +202,4 @@ Endpoints internos agregados:
 
 Las respuestas de `api/consulta.php` incluyen `seguimiento_local` solo cuando hay sesión interna autenticada. La vista pública conserva los datos oficiales sincronizados y oculta expedientes internos.
 
-La gestión de recepción y derivación se realiza desde la ficha del expediente: primero se busca el expediente y, si el usuario tiene permiso sobre el sector correspondiente, aparecen las acciones internas disponibles.
+La gestión de recepción y derivación se realiza desde la ficha del expediente: primero se busca el expediente y, si el usuario tiene permiso sobre el sector correspondiente, aparecen las acciones internas disponibles. En el panel superior, el menú lateral muestra una sola sección activa por vez: Dashboard, Bandeja interna, Gestión de usuarios (admin) o Mi cuenta.
